@@ -30,15 +30,25 @@ type Command struct {
 }
 
 type Option struct {
-	Name  string // Option name
-	Alias string // Optional option alias
-	Value any    // Default value and type
-	Desc  string // Description shown in help
+	Name  string     // Option name
+	Alias string     // Optional option alias
+	Type  OptionType // Option type
+	Value any        // Default value and type
+	Desc  string     // Description shown in help
 }
 
 type Value struct {
 	Any any // Store option value
 }
+
+// Option types
+type OptionType int
+
+const (
+	String OptionType = iota
+	Int
+	Bool
+)
 
 // The main entry point of the CLI.
 func (a *App) Run() int {
@@ -194,8 +204,8 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 			return nil, nil, fmt.Errorf("invalid option: '%s'\n", arg)
 		}
 
-		switch matchedOption.Value.(type) {
-		case bool:
+		switch matchedOption.Type {
+		case Bool:
 			if optValue == "" && !hasEqualSign {
 				optValue = "true"
 			}
@@ -211,22 +221,22 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 		}
 
 		// Type conversion and validation
-		switch matchedOption.Value.(type) {
-		case bool:
+		switch matchedOption.Type {
+		case Bool:
 			parsed, err := strconv.ParseBool(optValue)
 			if err != nil {
 				return nil, nil, fmt.Errorf("bool parse error: %s\n", optValue)
 			}
 			options[matchedOption.Name] = Value{Any: parsed}
 
-		case int:
+		case Int:
 			parsed, err := strconv.Atoi(optValue)
 			if err != nil {
 				return nil, nil, fmt.Errorf("int parse error: %s\n", optValue)
 			}
 			options[matchedOption.Name] = Value{Any: parsed}
 
-		case string:
+		case String:
 			options[matchedOption.Name] = Value{Any: optValue}
 
 		default:
