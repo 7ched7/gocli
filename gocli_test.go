@@ -85,7 +85,7 @@ func exampleApp() *App {
 				{Name: "to", Alias: "t", Value: "", Desc: "Name to send a message to"},
 			},
 			Run: func(args []string, options map[string]Value) {
-				name := options["to"].String()
+				name := options["to"].GetString()
 				text := args[0]
 
 				if name != "" {

@@ -1,10 +1,11 @@
 package gocli
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type App struct {
@@ -78,13 +79,11 @@ func (a *App) RunWithArgs(args []string) int {
 		return 2
 	}
 
-	cmd, remainingArgs := findCmd(cmd, args[2:])
+	cmd, remainingArgs := findSubCmd(cmd, args[2:])
 
 	parsedArgs, options, err := a.parseCmd(cmd, remainingArgs)
 	if err != nil {
-		if err == flag.ErrHelp {
-			return 0
-		}
+		fmt.Fprint(a.stderr(), err)
 		return 2
 	}
 
@@ -121,8 +120,125 @@ func (a *App) RunWithArgs(args []string) int {
 	return 0
 }
 
+// Extracts arguments and options.
+func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, options map[string]Value, err error) {
+	args = []string{}
+	options = make(map[string]Value)
+
+	hasHelpOpt := false
+	for _, arg := range remainingArgs {
+		if arg == "--" {
+			break
+		}
+		if arg == "--help" || arg == "-h" {
+			hasHelpOpt = true
+			break
+		}
+	}
+
+	if hasHelpOpt {
+		a.printCmdHelp(cmd, a.stdout())
+		return nil, nil, fmt.Errorf("")
+	}
+
+	// Add default option values to options map
+	for _, opt := range cmd.Options {
+		options[opt.Name] = Value{Any: opt.Value}
+	}
+
+	positionalOnly := false
+
+	for i := 0; i < len(remainingArgs); i++ {
+		arg := remainingArgs[i]
+
+		if positionalOnly {
+			args = append(args, arg)
+			continue
+		}
+
+		// Enable positional-only mode
+		if arg == "--" {
+			positionalOnly = true
+			continue
+		}
+
+		// Positional argument
+		if !strings.HasPrefix(arg, "-") {
+			args = append(args, arg)
+			continue
+		}
+
+		// Extract option
+		var optName string
+		var optValue string
+		hasEqualSign := strings.Contains(arg, "=")
+		if hasEqualSign {
+			parts := strings.SplitN(arg, "=", 2)
+			optName = parts[0]
+			optValue = parts[1]
+		} else {
+			optName = arg
+		}
+
+		// Option validation
+		var matchedOption *Option
+		for i := range cmd.Options {
+			opt := &cmd.Options[i]
+			if optName == "--"+opt.Name || (opt.Alias != "" && optName == "-"+opt.Alias) {
+				matchedOption = opt
+				break
+			}
+		}
+
+		if matchedOption == nil {
+			return nil, nil, fmt.Errorf("invalid option: '%s'\n", arg)
+		}
+
+		switch matchedOption.Value.(type) {
+		case bool:
+			if optValue == "" && !hasEqualSign {
+				optValue = "true"
+			}
+		default:
+			if optValue == "" {
+				if i+1 < len(remainingArgs) {
+					optValue = remainingArgs[i+1]
+					i++
+				} else {
+					return nil, nil, fmt.Errorf("value required for option: '%s'\n", matchedOption.Name)
+				}
+			}
+		}
+
+		// Type conversion and validation
+		switch matchedOption.Value.(type) {
+		case bool:
+			parsed, err := strconv.ParseBool(optValue)
+			if err != nil {
+				return nil, nil, fmt.Errorf("bool parse error: %s\n", optValue)
+			}
+			options[matchedOption.Name] = Value{Any: parsed}
+
+		case int:
+			parsed, err := strconv.Atoi(optValue)
+			if err != nil {
+				return nil, nil, fmt.Errorf("int parse error: %s\n", optValue)
+			}
+			options[matchedOption.Name] = Value{Any: parsed}
+
+		case string:
+			options[matchedOption.Name] = Value{Any: optValue}
+
+		default:
+			return nil, nil, fmt.Errorf("unsupported type: %s\n", fmt.Sprintf("%T", matchedOption.Value))
+		}
+	}
+
+	return args, options, nil
+}
+
 // Recursively resolves nested subcommands.
-func findCmd(cmd *Command, args []string) (*Command, []string) {
+func findSubCmd(cmd *Command, args []string) (*Command, []string) {
 	if len(args) == 0 {
 		return cmd, args
 	}
@@ -133,68 +249,11 @@ func findCmd(cmd *Command, args []string) (*Command, []string) {
 		sc := &cmd.Subcommand[i]
 		sc.parent = cmd
 		if sc.Name == next || sc.Alias == next {
-			return findCmd(sc, args[1:])
+			return findSubCmd(sc, args[1:])
 		}
 	}
 
 	return cmd, args
-}
-
-// Registers and parses options for a command.
-func (a *App) parseCmd(cmd *Command, args []string) ([]string, map[string]Value, error) {
-	flagSet := flag.NewFlagSet(cmd.Name, flag.ContinueOnError)
-	flagSet.SetOutput(a.stderr())
-
-	flagSet.Usage = func() {
-		a.printCmdHelp(cmd, flagSet.Output())
-	}
-
-	values := make(map[string]any)
-
-	// Create options
-	for _, f := range cmd.Options {
-		switch v := f.Value.(type) {
-		case bool:
-			p := flagSet.Bool(f.Name, v, f.Desc)
-			if f.Alias != "" {
-				flagSet.BoolVar(p, f.Alias, v, f.Desc)
-			}
-			values[f.Name] = p
-		case int:
-			p := flagSet.Int(f.Name, v, f.Desc)
-			if f.Alias != "" {
-				flagSet.IntVar(p, f.Alias, v, f.Desc)
-			}
-			values[f.Name] = p
-		case string:
-			p := flagSet.String(f.Name, v, f.Desc)
-			if f.Alias != "" {
-				flagSet.StringVar(p, f.Alias, v, f.Desc)
-			}
-			values[f.Name] = p
-		}
-	}
-
-	err := flagSet.Parse(args)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Convert option pointers into a key/value map
-	// according to their types
-	options := make(map[string]Value)
-	for key, val := range values {
-		switch v := val.(type) {
-		case *bool:
-			options[key] = Value{Any: *v}
-		case *int:
-			options[key] = Value{Any: *v}
-		case *string:
-			options[key] = Value{Any: *v}
-		}
-	}
-
-	return flagSet.Args(), options, nil
 }
 
 // Displays the global help menu.
@@ -291,19 +350,19 @@ func (a *App) printCmdHelp(cmd *Command, w io.Writer) {
 }
 
 // Returns string value.
-func (v Value) String() string {
+func (v Value) GetString() string {
 	s := v.Any.(string)
 	return s
 }
 
 // Returns int value.
-func (v Value) Int() int {
+func (v Value) GetInt() int {
 	i := v.Any.(int)
 	return i
 }
 
 // Returns bool value.
-func (v Value) Bool() bool {
+func (v Value) GetBool() bool {
 	b := v.Any.(bool)
 	return b
 }
