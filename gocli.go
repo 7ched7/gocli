@@ -47,6 +47,7 @@ type OptionType int
 const (
 	String OptionType = iota
 	Int
+	Float
 	Bool
 )
 
@@ -222,12 +223,8 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 
 		// Type conversion and validation
 		switch matchedOption.Type {
-		case Bool:
-			parsed, err := strconv.ParseBool(optValue)
-			if err != nil {
-				return nil, nil, fmt.Errorf("bool parse error: %s\n", optValue)
-			}
-			options[matchedOption.Name] = Value{Any: parsed}
+		case String:
+			options[matchedOption.Name] = Value{Any: optValue}
 
 		case Int:
 			parsed, err := strconv.Atoi(optValue)
@@ -236,8 +233,19 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 			}
 			options[matchedOption.Name] = Value{Any: parsed}
 
-		case String:
-			options[matchedOption.Name] = Value{Any: optValue}
+		case Float:
+			parsed, err := strconv.ParseFloat(optValue, 64)
+			if err != nil {
+				return nil, nil, fmt.Errorf("float parse error: %s\n", optValue)
+			}
+			options[matchedOption.Name] = Value{Any: parsed}
+
+		case Bool:
+			parsed, err := strconv.ParseBool(optValue)
+			if err != nil {
+				return nil, nil, fmt.Errorf("bool parse error: %s\n", optValue)
+			}
+			options[matchedOption.Name] = Value{Any: parsed}
 
 		default:
 			return nil, nil, fmt.Errorf("unsupported type: %s\n", fmt.Sprintf("%T", matchedOption.Value))
@@ -369,6 +377,12 @@ func (v Value) GetString() string {
 func (v Value) GetInt() int {
 	i := v.Any.(int)
 	return i
+}
+
+// Returns float value.
+func (v Value) GetFloat() float64 {
+	f := v.Any.(float64)
+	return f
 }
 
 // Returns bool value.
