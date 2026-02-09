@@ -9,54 +9,60 @@ import (
 )
 
 type App struct {
-	Name           string                                            // Application name
-	Version        string                                            // Optional app version
-	Commands       []Command                                         // Commands
-	Stdout         io.Writer                                         // Standard output
-	Stderr         io.Writer                                         // Standard error
-	MessageHandler map[ErrorType]func(app *App, err CLIError) string // Custom message handler
+	name        string                                            // Application name
+	version     string                                            // Optional app version
+	description string                                            // Application description
+	commands    []*Command                                        // Commands
+	stdout      io.Writer                                         // Standard output
+	stderr      io.Writer                                         // Standard error
+	messageMap  map[errorType]func(app *App, err CLIError) string // Custom message map
 }
 
 type Command struct {
-	Name       string                                        // Command name
-	Alias      string                                        // Optional command alias
-	Short      string                                        // Short description shown in global help
-	Long       string                                        // Detailed description shown in command help
-	Subcommand []Command                                     // Nested subcommands
-	Options    []Option                                      // Command-specific options
-	MinArg     int                                           // Minimum required argument
-	MaxArg     int                                           // Maximum required argument
-	Run        func(args []string, options map[string]Value) // Execution handler
-	parent     *Command                                      // Internal pointer for help generation
+	name        string                                        // Command name
+	alias       string                                        // Optional command alias
+	short       string                                        // Short description shown in global help
+	long        string                                        // Detailed description shown in command help
+	subcommands []*Command                                    // Nested subcommands
+	options     []*Option                                     // Command-specific options
+	minArg      int                                           // Minimum required argument
+	maxArg      int                                           // Maximum required argument
+	action      func(args []string, options map[string]Value) // Execution handler
+	parent      *Command                                      // Internal pointer for help generation
 }
 
 type Option struct {
-	Name  string     // Option name
-	Alias string     // Optional option alias
-	Type  OptionType // Option type
-	Value any        // Default value and type
-	Desc  string     // Description shown in help
+	name        string     // Option name
+	alias       string     // Optional option alias
+	optionType  optionType // Option value type
+	value       any        // Default value and type
+	description string     // Description shown in help
+}
+
+type optionBuilder struct {
+	target *Option
+	parent *Command
 }
 
 type Value struct {
-	Any any // Store option value
+	value any // Store option value
 }
 
 // Option types
-type OptionType int
+type optionType int
 
 const (
-	String OptionType = iota
+	String optionType = iota
 	Int
 	Float
 	Bool
 )
 
 // Error types
-type ErrorType int
+type errorType int
 
 const (
-	ErrHelp ErrorType = iota
+	ErrHelp errorType = iota
 	ErrCommandHelp
 	ErrVersion
 	ErrNoCommand
@@ -76,7 +82,7 @@ const (
 type CLIError struct {
 	Code    int            // Exit code
 	Message string         // Error message
-	Type    ErrorType      // Error type
+	Type    errorType      // Error type
 	Cmd     *Command       // Command pointer
 	Data    map[string]any // Extra information
 }
@@ -102,16 +108,16 @@ func (a *App) RunWithArgs(args []string) int {
 		return a.stop(ErrHelp, nil, nil)
 
 	case "--version", "-v":
-		if a.Version != "" {
+		if a.version != "" {
 			return a.stop(ErrVersion, nil, nil)
 		}
 	}
 
 	// Find the command
 	var cmd *Command
-	for i := range a.Commands {
-		if a.Commands[i].Name == input || a.Commands[i].Alias == input {
-			cmd = &a.Commands[i]
+	for i := range a.commands {
+		if a.commands[i].name == input || a.commands[i].alias == input {
+			cmd = a.commands[i]
 			break
 		}
 	}
@@ -129,8 +135,8 @@ func (a *App) RunWithArgs(args []string) int {
 		return err
 	}
 
-	if cmd.Run != nil {
-		cmd.Run(parsedArgs, options)
+	if cmd.action != nil {
+		cmd.action(parsedArgs, options)
 	}
 
 	return 0
@@ -157,8 +163,8 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 	}
 
 	// Add default option values to options map
-	for _, opt := range cmd.Options {
-		options[opt.Name] = Value{Any: opt.Value}
+	for _, opt := range cmd.options {
+		options[opt.name] = Value{value: opt.value}
 	}
 
 	positionalOnly := false
@@ -197,9 +203,9 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 
 		// Option validation
 		var matchedOption *Option
-		for i := range cmd.Options {
-			opt := &cmd.Options[i]
-			if optName == "--"+opt.Name || (opt.Alias != "" && optName == "-"+opt.Alias) {
+		for i := range cmd.options {
+			opt := cmd.options[i]
+			if optName == "--"+opt.name || (opt.alias != "" && optName == "-"+opt.alias) {
 				matchedOption = opt
 				break
 			}
@@ -211,7 +217,7 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 			})
 		}
 
-		switch matchedOption.Type {
+		switch matchedOption.optionType {
 		case Bool:
 			if optValue == "" && !hasEqualSign {
 				optValue = "true"
@@ -223,16 +229,16 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 					i++
 				} else {
 					return nil, nil, a.stop(ErrOptionValueMissing, cmd, map[string]any{
-						"opt": matchedOption.Name,
+						"opt": matchedOption.name,
 					})
 				}
 			}
 		}
 
 		// Type conversion and validation
-		switch matchedOption.Type {
+		switch matchedOption.optionType {
 		case String:
-			options[matchedOption.Name] = Value{Any: optValue}
+			options[matchedOption.name] = Value{value: optValue}
 
 		case Int:
 			parsed, err := strconv.Atoi(optValue)
@@ -242,7 +248,7 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 				})
 			}
 
-			options[matchedOption.Name] = Value{Any: parsed}
+			options[matchedOption.name] = Value{value: parsed}
 
 		case Float:
 			parsed, err := strconv.ParseFloat(optValue, 64)
@@ -252,7 +258,7 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 				})
 			}
 
-			options[matchedOption.Name] = Value{Any: parsed}
+			options[matchedOption.name] = Value{value: parsed}
 
 		case Bool:
 			parsed, err := strconv.ParseBool(optValue)
@@ -262,36 +268,36 @@ func (a *App) parseCmd(cmd *Command, remainingArgs []string) (args []string, opt
 				})
 			}
 
-			options[matchedOption.Name] = Value{Any: parsed}
+			options[matchedOption.name] = Value{value: parsed}
 
 		default:
 			return nil, nil, a.stop(ErrUnsupportedOptionType, cmd, map[string]any{
-				"val": matchedOption.Value,
+				"val": matchedOption.value,
 			})
 		}
 	}
 
 	// If a command has subcommands but no defined options or run function,
 	// then a subcommand is required
-	if len(cmd.Subcommand) > 0 && len(cmd.Options) == 0 && cmd.Run == nil {
+	if len(cmd.subcommands) > 0 && len(cmd.options) == 0 && cmd.action == nil {
 		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
-			"cmd": cmd.Name,
+			"cmd": cmd.name,
 		})
 	}
 
 	nargs := len(args)
 
-	if cmd.MaxArg == 0 && cmd.MinArg == 0 && nargs > 0 {
+	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
 		return nil, nil, a.stop(ErrUnexpectedArgument, cmd, map[string]any{
 			"got": nargs,
 		})
 	}
-	if cmd.MinArg > 0 && nargs < cmd.MinArg {
+	if cmd.minArg > 0 && nargs < cmd.minArg {
 		return nil, nil, a.stop(ErrTooFewArguments, cmd, map[string]any{
 			"got": nargs,
 		})
 	}
-	if cmd.MaxArg > 0 && nargs > cmd.MaxArg {
+	if cmd.maxArg > 0 && nargs > cmd.maxArg {
 		return nil, nil, a.stop(ErrTooManyArguments, cmd, map[string]any{
 			"got": nargs,
 		})
@@ -308,10 +314,10 @@ func findSubCmd(cmd *Command, args []string) (*Command, []string) {
 
 	next := args[0]
 
-	for i := range cmd.Subcommand {
-		sc := &cmd.Subcommand[i]
+	for i := range cmd.subcommands {
+		sc := cmd.subcommands[i]
 		sc.parent = cmd
-		if sc.Name == next || sc.Alias == next {
+		if sc.name == next || sc.alias == next {
 			return findSubCmd(sc, args[1:])
 		}
 	}
@@ -324,28 +330,28 @@ func (a *App) Help() string {
 	var sb strings.Builder
 
 	fmt.Fprintln(&sb, "Usage:")
-	fmt.Fprintf(&sb, "  %s [COMMAND] [OPTIONS] [ARGS...]\n", a.Name)
+	fmt.Fprintf(&sb, "  %s [COMMAND] [OPTIONS] [ARGS...]\n", a.name)
 	fmt.Fprintln(&sb)
 	fmt.Fprintln(&sb, "Commands:")
 
-	for _, cmd := range a.Commands {
-		entry := cmd.Name
+	for _, cmd := range a.commands {
+		entry := cmd.name
 
-		if cmd.Alias != "" {
-			entry += ", " + cmd.Alias
+		if cmd.alias != "" {
+			entry += ", " + cmd.alias
 		}
 
-		fmt.Fprintf(&sb, "  %-18s %s\n", entry, cmd.Short)
+		fmt.Fprintf(&sb, "  %-18s %s\n", entry, cmd.short)
 	}
 
 	fmt.Fprintln(&sb, "\nOptions:")
 	fmt.Fprintf(&sb, "  %-18s %s\n", "--help, -h", "Show help")
-	if a.Version != "" {
+	if a.version != "" {
 		fmt.Fprintf(&sb, "  %-18s %s\n", "--version, -v", "Show version")
 	}
 
-	if len(a.Commands) > 0 {
-		fmt.Fprintf(&sb, "\nFor more information about a command, use '%s <command> --help'.\n", a.Name)
+	if len(a.commands) > 0 {
+		fmt.Fprintf(&sb, "\nFor more information about a command, use '%s <command> --help'.\n", a.name)
 	}
 
 	return sb.String()
@@ -356,24 +362,24 @@ func (a *App) CommandHelp(cmd *Command) string {
 	var sb strings.Builder
 
 	fmt.Fprintln(&sb, "Usage:")
-	fmt.Fprintf(&sb, "  %s", a.Name)
+	fmt.Fprintf(&sb, "  %s", a.name)
 
 	// Build full command path
 	var parents []string
 	currCmd := cmd
 	for currCmd.Parent() != nil {
 		currCmd = currCmd.Parent()
-		parents = append(parents, currCmd.Name)
+		parents = append(parents, currCmd.name)
 	}
 
 	for i := len(parents) - 1; i >= 0; i-- {
 		fmt.Fprintf(&sb, " %s", parents[i])
 	}
 
-	fmt.Fprintf(&sb, " %s", cmd.Name)
+	fmt.Fprintf(&sb, " %s", cmd.name)
 
-	hasSubcmd := len(cmd.Subcommand) > 0
-	hasOption := len(cmd.Options) > 0
+	hasSubcmd := len(cmd.subcommands) > 0
+	hasOption := len(cmd.options) > 0
 
 	if hasSubcmd {
 		fmt.Fprint(&sb, " [COMMAND]")
@@ -382,45 +388,45 @@ func (a *App) CommandHelp(cmd *Command) string {
 		fmt.Fprint(&sb, " [OPTIONS]")
 	}
 
-	if cmd.MaxArg == 1 {
+	if cmd.maxArg == 1 {
 		fmt.Fprint(&sb, " [ARG]")
-	} else if cmd.MaxArg > 1 {
-		fmt.Fprintf(&sb, " [ARG1...ARG%d]", cmd.MaxArg)
-	} else if cmd.MinArg > 0 {
+	} else if cmd.maxArg > 1 {
+		fmt.Fprintf(&sb, " [ARG1...ARG%d]", cmd.maxArg)
+	} else if cmd.minArg > 0 {
 		fmt.Fprint(&sb, " [ARGS...]")
 	}
 
 	fmt.Fprintln(&sb)
-	if cmd.Long != "" {
-		fmt.Fprintf(&sb, "\n%s\n", cmd.Long)
+	if cmd.long != "" {
+		fmt.Fprintf(&sb, "\n%s\n", cmd.long)
 	}
 
 	if hasSubcmd {
 		fmt.Fprintln(&sb, "\nCommands:")
-		for _, f := range cmd.Subcommand {
-			displayName := f.Name
-			if f.Alias != "" {
-				displayName += ", " + f.Alias
+		for _, f := range cmd.subcommands {
+			displayName := f.name
+			if f.alias != "" {
+				displayName += ", " + f.alias
 			}
-			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.Short)
+			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.short)
 		}
 	}
 
 	if hasOption {
 		fmt.Fprintln(&sb, "\nOptions:")
-		for _, f := range cmd.Options {
-			displayName := "--" + f.Name
-			if f.Alias != "" {
-				displayName += ", -" + f.Alias
+		for _, f := range cmd.options {
+			displayName := "--" + f.name
+			if f.alias != "" {
+				displayName += ", -" + f.alias
 			}
-			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.Desc)
+			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.description)
 		}
 	}
 
 	return sb.String()
 }
 
-func getMessageAndExitCode(a *App, errType ErrorType, cmd *Command, data map[string]any) (int, string) {
+func getMessageAndExitCode(a *App, errType errorType, cmd *Command, data map[string]any) (int, string) {
 	var code int = 2
 	var msg string
 
@@ -435,7 +441,7 @@ func getMessageAndExitCode(a *App, errType ErrorType, cmd *Command, data map[str
 
 	case ErrVersion:
 		code = 0
-		msg = fmt.Sprintf("%s version %s\n", a.Name, a.Version)
+		msg = fmt.Sprintf("%s version %s\n", a.name, a.version)
 
 	case ErrNoCommand:
 		code = 0
@@ -454,13 +460,13 @@ func getMessageAndExitCode(a *App, errType ErrorType, cmd *Command, data map[str
 		msg = fmt.Sprintf("value required for option: '%s'\n", data["opt"])
 
 	case ErrUnexpectedArgument:
-		msg = fmt.Sprintf("%s does not accept argument(s)\n", cmd.Name)
+		msg = fmt.Sprintf("%s does not accept argument(s)\n", cmd.name)
 
 	case ErrTooFewArguments:
-		msg = fmt.Sprintf("%s requires at least %d argument(s), got %d\n", cmd.Name, cmd.MinArg, data["got"])
+		msg = fmt.Sprintf("%s requires at least %d argument(s), got %d\n", cmd.name, cmd.minArg, data["got"])
 
 	case ErrTooManyArguments:
-		msg = fmt.Sprintf("%s requires at most %d argument(s), got %d\n", cmd.Name, cmd.MaxArg, data["got"])
+		msg = fmt.Sprintf("%s requires at most %d argument(s), got %d\n", cmd.name, cmd.maxArg, data["got"])
 
 	case ErrInvalidIntValue:
 		msg = fmt.Sprintf("int parse error: '%s'\n", data["val"])
@@ -480,7 +486,7 @@ func getMessageAndExitCode(a *App, errType ErrorType, cmd *Command, data map[str
 	return code, msg
 }
 
-func (a *App) stop(errType ErrorType, cmd *Command, data map[string]any) int {
+func (a *App) stop(errType errorType, cmd *Command, data map[string]any) int {
 	code, message := getMessageAndExitCode(a, errType, cmd, data)
 
 	return a.handleError(CLIError{
@@ -494,10 +500,10 @@ func (a *App) stop(errType ErrorType, cmd *Command, data map[string]any) int {
 
 func (a *App) handleError(err CLIError) int {
 	var msg string
-	out := a.stderr()
+	out := a.Stderr()
 
-	if a.MessageHandler != nil {
-		if fn, ok := a.MessageHandler[err.Type]; ok {
+	if a.messageMap != nil {
+		if fn, ok := a.messageMap[err.Type]; ok {
 			msg = fn(a, err)
 		}
 	}
@@ -507,51 +513,185 @@ func (a *App) handleError(err CLIError) int {
 	}
 
 	if err.Code == 0 {
-		out = a.stdout()
+		out = a.Stdout()
 	}
 
 	fmt.Fprint(out, msg)
 	return err.Code
 }
 
+func (a *App) HandleMessage(errType errorType, fn func(app *App, err CLIError) string) *App {
+	a.messageMap[errType] = fn
+	return a
+}
+
 // Returns string value.
-func (v Value) GetString() string {
-	s := v.Any.(string)
+func (v Value) String() string {
+	s := v.value.(string)
 	return s
 }
 
 // Returns int value.
-func (v Value) GetInt() int {
-	i := v.Any.(int)
+func (v Value) Int() int {
+	i := v.value.(int)
 	return i
 }
 
 // Returns float value.
-func (v Value) GetFloat() float64 {
-	f := v.Any.(float64)
+func (v Value) Float() float64 {
+	f := v.value.(float64)
 	return f
 }
 
 // Returns bool value.
-func (v Value) GetBool() bool {
-	b := v.Any.(bool)
+func (v Value) Bool() bool {
+	b := v.value.(bool)
 	return b
 }
 
-func (c *Command) Parent() *Command {
+func NewApp(name string) *App {
+	return &App{
+		name:       name,
+		commands:   []*Command{},
+		stdout:     os.Stdout,
+		stderr:     os.Stderr,
+		messageMap: map[errorType]func(app *App, err CLIError) string{},
+	}
+}
+
+func (a *App) SetVersion(version string) *App {
+	a.version = version
+	return a
+}
+
+func (a *App) SetDescription(description string) *App {
+	a.description = description
+	return a
+}
+
+func (a *App) SetStdout(out io.Writer) *App {
+	a.stdout = out
+	return a
+}
+
+func (a *App) SetStderr(err io.Writer) *App {
+	a.stderr = err
+	return a
+}
+
+func (a *App) AddCommand(name string) *Command {
+	c := &Command{
+		name:        name,
+		options:     []*Option{},
+		subcommands: []*Command{},
+	}
+	a.commands = append(a.commands, c)
+	return c
+}
+
+func (c *Command) SetAlias(alias string) *Command {
+	c.alias = alias
+	return c
+}
+
+func (c *Command) SetShort(short string) *Command {
+	c.short = short
+	return c
+}
+
+func (c *Command) SetLong(long string) *Command {
+	c.long = long
+	return c
+}
+
+func (c *Command) SetMinArg(min int) *Command {
+	c.minArg = min
+	return c
+}
+
+func (c *Command) SetMaxArg(max int) *Command {
+	c.maxArg = max
+	return c
+}
+
+func (c *Command) AddSubcommand(name string) *Command {
+	sub := &Command{name: name, parent: c}
+	c.subcommands = append(c.subcommands, sub)
+	return sub
+}
+
+func (c *Command) Ok() *Command {
 	return c.parent
 }
 
-func (a *App) stdout() io.Writer {
-	if a.Stdout != nil {
-		return a.Stdout
+func (c *Command) AddOption(name string) *optionBuilder {
+	o := &Option{name: name}
+	return &optionBuilder{
+		target: o,
+		parent: c,
+	}
+}
+
+func (o *optionBuilder) SetAlias(alias string) *optionBuilder {
+	o.target.alias = alias
+	return o
+}
+
+func (o *optionBuilder) SetType(optionType optionType) *optionBuilder {
+	o.target.optionType = optionType
+	return o
+}
+
+func (o *optionBuilder) SetValue(value any) *optionBuilder {
+	o.target.value = value
+	return o
+}
+
+func (o *optionBuilder) SetDescription(description string) *optionBuilder {
+	o.target.description = description
+	return o
+}
+
+func (o *optionBuilder) Ok() *Command {
+	o.parent.options = append(o.parent.options, o.target)
+	return o.parent
+}
+
+func (c *Command) Action(fn func(args []string, options map[string]Value)) *Command {
+	c.action = fn
+	return c
+}
+
+func (a *App) Name() string         { return a.name }
+func (a *App) Version() string      { return a.version }
+func (a *App) Description() string  { return a.description }
+func (a *App) Commands() []*Command { return a.commands }
+
+func (a *App) Stdout() io.Writer {
+	if a.stdout != nil {
+		return a.stdout
 	}
 	return os.Stdout
 }
-
-func (a *App) stderr() io.Writer {
-	if a.Stderr != nil {
-		return a.Stderr
+func (a *App) Stderr() io.Writer {
+	if a.stderr != nil {
+		return a.stderr
 	}
 	return os.Stderr
 }
+
+func (c *Command) Name() string            { return c.name }
+func (c *Command) Alias() string           { return c.alias }
+func (c *Command) Short() string           { return c.short }
+func (c *Command) Long() string            { return c.long }
+func (c *Command) Subcommands() []*Command { return c.subcommands }
+func (c *Command) Options() []*Option      { return c.options }
+func (c *Command) MinArg() int             { return c.minArg }
+func (c *Command) MaxArg() int             { return c.maxArg }
+func (c *Command) Parent() *Command        { return c.parent }
+
+func (o *Option) Name() string           { return o.name }
+func (o *Option) Alias() string          { return o.alias }
+func (o *Option) OptionType() optionType { return o.optionType }
+func (o *Option) Value() any             { return o.value }
+func (o *Option) Description() string    { return o.description }

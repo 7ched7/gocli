@@ -13,7 +13,7 @@ func TestMessageCommand_WithoutName(t *testing.T) {
 
 	var out bytes.Buffer
 	w := io.MultiWriter(io.Discard, &out)
-	app.Stdout = w
+	app.stdout = w
 
 	app.RunWithArgs([]string{"mycli", "message", "hello"})
 
@@ -37,7 +37,7 @@ func TestMathMulCommand(t *testing.T) {
 
 	var out bytes.Buffer
 	w := io.MultiWriter(io.Discard, &out)
-	app.Stdout = w
+	app.stdout = w
 
 	app.RunWithArgs([]string{"mycli", "math", "mul", "2", "2"})
 
@@ -66,65 +66,52 @@ func TestMathCommand_WithoutSubcmd(t *testing.T) {
 }
 
 func exampleApp() *App {
-	app := &App{
-		Name:    "mycli",
-		Version: "1.0.0",
-		Stdout:  io.Discard,
-		Stderr:  io.Discard,
-	}
+	app := NewApp("mycli").SetVersion("0.1.0")
 
-	app.Commands = []Command{
-		{
-			Name:   "message",
-			Alias:  "msg",
-			Short:  "Send a message",
-			Long:   "Send a message to someone",
-			MinArg: 1,
-			MaxArg: 1,
-			Options: []Option{
-				{Name: "to", Alias: "t", Value: "", Desc: "Name to send a message to"},
-			},
-			Run: func(args []string, options map[string]Value) {
-				name := options["to"].GetString()
-				text := args[0]
+	app.SetStdout(io.Discard)
+	app.SetStderr(io.Discard)
 
-				if name != "" {
-					fmt.Fprintf(app.stdout(), "Hey %s! %s\n", name, text)
-				} else {
-					fmt.Fprintf(app.stdout(), "Hey Guest! %s\n", text)
-				}
-			},
-		},
-		{
-			Name:  "math",
-			Short: "Perform simple math operations",
-			Long:  "Perform addition and multiplication operations on numbers",
-			Subcommand: []Command{
-				{
-					Name:   "add",
-					Short:  "Adds two numbers",
-					MinArg: 2,
-					MaxArg: 2,
-					Run: func(args []string, options map[string]Value) {
-						a := args[0]
-						b := args[1]
-						fmt.Fprintf(app.stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
-					},
-				},
-				{
-					Name:   "mul",
-					Short:  "Multiplies two numbers",
-					MinArg: 2,
-					MaxArg: 2,
-					Run: func(args []string, options map[string]Value) {
-						a := args[0]
-						b := args[1]
-						fmt.Fprintf(app.stdout(), "%s * %s = %d\n", a, b, atoi(a)*atoi(b))
-					},
-				},
-			},
-		},
-	}
+	app.AddCommand("message").
+		SetAlias("msg").
+		SetShort("Send a message").
+		SetLong("Send a message to someone").
+		SetMinArg(1).
+		SetMaxArg(1).
+		AddOption("to").SetAlias("t").SetType(String).SetValue("").SetDescription("Name to send a message to").Ok().
+		Action(func(args []string, options map[string]Value) {
+			name := options["to"].String()
+			text := args[0]
+
+			if name != "" {
+				fmt.Fprintf(app.Stdout(), "Hey %s! %s\n", name, text)
+			} else {
+				fmt.Fprintf(app.Stdout(), "Hey Guest! %s\n", text)
+			}
+		})
+
+	app.AddCommand("math").
+		SetShort("Perform simple math operations").
+		SetLong("Perform addition and multiplication operations on numbers").
+		AddSubcommand("add").
+		SetShort("Adds two numbers").
+		SetMinArg(2).
+		SetMaxArg(2).
+		Action(func(args []string, options map[string]Value) {
+			a := args[0]
+			b := args[1]
+			fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
+		}).
+		Ok().
+		AddSubcommand("mul").
+		SetShort("Multiplies two numbers").
+		SetMinArg(2).
+		SetMaxArg(2).
+		Action(func(args []string, options map[string]Value) {
+			a := args[0]
+			b := args[1]
+			fmt.Fprintf(app.Stdout(), "%s * %s = %d\n", a, b, atoi(a)*atoi(b))
+		}).
+		Ok()
 
 	return app
 }
