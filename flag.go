@@ -7,7 +7,7 @@ type Flag struct {
 	name         string   // Flag name
 	alias        string   // Optional flag alias
 	flagType     flagType // Flag value type
-	defaultValue any      // Default value and type
+	defaultValue any      // Default flag value
 	description  string   // Description shown in help
 }
 

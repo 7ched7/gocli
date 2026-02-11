@@ -109,7 +109,7 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 			parsed, err := strconv.Atoi(flagValue)
 			if err != nil {
 				return nil, nil, a.stop(ErrInvalidIntValue, cmd, map[string]any{
-					"val": flagValue,
+					"value": flagValue,
 				})
 			}
 
@@ -119,7 +119,7 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 			parsed, err := strconv.ParseFloat(flagValue, 64)
 			if err != nil {
 				return nil, nil, a.stop(ErrInvalidFloatValue, cmd, map[string]any{
-					"val": flagValue,
+					"value": flagValue,
 				})
 			}
 
@@ -129,7 +129,7 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 			parsed, err := strconv.ParseBool(flagValue)
 			if err != nil {
 				return nil, nil, a.stop(ErrInvalidBoolValue, cmd, map[string]any{
-					"val": flagValue,
+					"value": flagValue,
 				})
 			}
 
@@ -137,7 +137,7 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 
 		default:
 			return nil, nil, a.stop(ErrUnsupportedFlagType, cmd, map[string]any{
-				"val": matchedFlag.defaultValue,
+				"value": matchedFlag.defaultValue,
 			})
 		}
 	}
@@ -146,7 +146,7 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 	// then a subcommand is required
 	if len(cmd.subcommands) > 0 && len(cmd.flags) == 0 && cmd.action == nil {
 		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
-			"cmd": cmd.name,
+			"command": cmd.name,
 		})
 	}
 
@@ -154,17 +154,17 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 
 	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
 		return nil, nil, a.stop(ErrUnexpectedArgument, cmd, map[string]any{
-			"got": nargs,
+			"number": nargs,
 		})
 	}
 	if cmd.minArg > 0 && nargs < cmd.minArg {
 		return nil, nil, a.stop(ErrTooFewArguments, cmd, map[string]any{
-			"got": nargs,
+			"number": nargs,
 		})
 	}
 	if cmd.maxArg > 0 && nargs > cmd.maxArg {
 		return nil, nil, a.stop(ErrTooManyArguments, cmd, map[string]any{
-			"got": nargs,
+			"number": nargs,
 		})
 	}
 
@@ -198,7 +198,7 @@ func (a *App) findRootCommand(input string) (*Command, int) {
 		}
 	}
 	return nil, a.stop(ErrUnknownCommand, nil, map[string]any{
-		"cmd": input,
+		"command": input,
 	})
 }
 
@@ -212,7 +212,6 @@ func (a *App) findSubcommand(cmd *Command, args []string) (*Command, []string) {
 
 	for i := range cmd.subcommands {
 		sc := cmd.subcommands[i]
-		sc.parent = cmd
 		if sc.name == next || sc.alias == next {
 			return a.findSubcommand(sc, args[1:])
 		}

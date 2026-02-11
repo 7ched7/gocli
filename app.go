@@ -9,9 +9,9 @@ import (
 // It manages application commands, configurations, and I/O streams.
 type App struct {
 	name             string                                            // Application name
-	version          string                                            // Optional app version
+	version          string                                            // Application version
 	description      string                                            // Application description
-	commands         []*Command                                        // Registered Commands
+	commands         []*Command                                        // Registered commands
 	stdout           io.Writer                                         // Standard output
 	stderr           io.Writer                                         // Standard error
 	customMessageMap map[errorType]func(app *App, err CLIError) string // Message map for customized messages

@@ -61,11 +61,11 @@ var defaultMessageMap = map[errorType]func(*App, *Command, map[string]any) (int,
 	},
 
 	ErrUnknownCommand: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("unknown command: '%s'\n", data["cmd"])
+		return 2, fmt.Sprintf("unknown command: '%s'\n", data["command"])
 	},
 
 	ErrSubcommandRequired: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s requires a subcommand\n", data["cmd"])
+		return 2, fmt.Sprintf("%s requires a subcommand\n", data["command"])
 	},
 
 	ErrInvalidFlag: func(_ *App, _ *Command, data map[string]any) (int, string) {
@@ -81,27 +81,27 @@ var defaultMessageMap = map[errorType]func(*App, *Command, map[string]any) (int,
 	},
 
 	ErrTooFewArguments: func(_ *App, cmd *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s requires at least %d argument(s), got %d\n", cmd.name, cmd.minArg, data["got"])
+		return 2, fmt.Sprintf("%s requires at least %d argument(s), got %d\n", cmd.name, cmd.minArg, data["number"])
 	},
 
 	ErrTooManyArguments: func(_ *App, cmd *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s requires at most %d argument(s), got %d\n", cmd.name, cmd.maxArg, data["got"])
+		return 2, fmt.Sprintf("%s requires at most %d argument(s), got %d\n", cmd.name, cmd.maxArg, data["number"])
 	},
 
 	ErrInvalidIntValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("int parse error: '%s'\n", data["val"])
+		return 2, fmt.Sprintf("int parse error: '%s'\n", data["value"])
 	},
 
 	ErrInvalidFloatValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("float parse error: '%s'\n", data["val"])
+		return 2, fmt.Sprintf("float parse error: '%s'\n", data["value"])
 	},
 
 	ErrInvalidBoolValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("bool parse error: '%s'\n", data["val"])
+		return 2, fmt.Sprintf("bool parse error: '%s'\n", data["value"])
 	},
 
 	ErrUnsupportedFlagType: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("unsupported type: '%s'\n", fmt.Sprintf("%T", data["val"]))
+		return 2, fmt.Sprintf("unsupported type: '%s'\n", fmt.Sprintf("%T", data["value"]))
 	},
 }
 
