@@ -66,20 +66,20 @@ func TestMathCommand_WithoutSubcmd(t *testing.T) {
 }
 
 func exampleApp() *App {
-	app := NewApp("mycli").SetVersion("0.1.0")
+	app := NewApp("mycli").WithVersion("0.1.0")
 
-	app.SetStdout(io.Discard)
-	app.SetStderr(io.Discard)
+	app.WithStdout(io.Discard)
+	app.WithStderr(io.Discard)
 
 	app.AddCommand("message").
-		SetAlias("msg").
-		SetShort("Send a message").
-		SetLong("Send a message to someone").
-		SetMinArg(1).
-		SetMaxArg(1).
-		AddOption("to").SetAlias("t").SetType(String).SetValue("").SetDescription("Name to send a message to").Ok().
-		Action(func(args []string, options map[string]Value) {
-			name := options["to"].String()
+		WithAlias("msg").
+		WithShort("Send a message").
+		WithLong("Send a message to someone").
+		WithMinArg(1).
+		WithMaxArg(1).
+		AddFlag("to").WithAlias("t").WithDefault("").WithDescription("Name to send a message to").Ok().
+		Action(func(args []string, flags Flags) {
+			name := flags.String("to")
 			text := args[0]
 
 			if name != "" {
@@ -90,23 +90,23 @@ func exampleApp() *App {
 		})
 
 	app.AddCommand("math").
-		SetShort("Perform simple math operations").
-		SetLong("Perform addition and multiplication operations on numbers").
+		WithShort("Perform simple math operations").
+		WithLong("Perform addition and multiplication operations on numbers").
 		AddSubcommand("add").
-		SetShort("Adds two numbers").
-		SetMinArg(2).
-		SetMaxArg(2).
-		Action(func(args []string, options map[string]Value) {
+		WithShort("Adds two numbers").
+		WithMinArg(2).
+		WithMaxArg(2).
+		Action(func(args []string, flags Flags) {
 			a := args[0]
 			b := args[1]
 			fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
 		}).
 		Ok().
 		AddSubcommand("mul").
-		SetShort("Multiplies two numbers").
-		SetMinArg(2).
-		SetMaxArg(2).
-		Action(func(args []string, options map[string]Value) {
+		WithShort("Multiplies two numbers").
+		WithMinArg(2).
+		WithMaxArg(2).
+		Action(func(args []string, flags Flags) {
 			a := args[0]
 			b := args[1]
 			fmt.Fprintf(app.Stdout(), "%s * %s = %d\n", a, b, atoi(a)*atoi(b))
