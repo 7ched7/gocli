@@ -5,63 +5,59 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"testing"
 )
 
-func TestMessageCommand_WithoutName(t *testing.T) {
-	app := exampleApp()
-
-	var out bytes.Buffer
-	w := io.MultiWriter(io.Discard, &out)
-	app.stdout = w
-
-	app.RunWithArgs([]string{"mycli", "message", "hello"})
-
-	sout := out.String()
-	if sout != "Hey Guest! hello\n" {
-		t.Fatalf("unexpected output: %s", sout)
+func TestApp(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		out  string
+		code int
+	}{
+		{"global no command", []string{}, "Usage:", 0},
+		{"global help flag", []string{"--help"}, "Usage:", 0},
+		{"global version flag", []string{"--version"}, "mycli version 0.1.0", 0},
+		{"global invalid command", []string{"asd"}, "unknown command: 'asd'", 2},
+		{"command help menu 1", []string{"message", "-h"}, "Usage", 0},
+		{"command help menu 2", []string{"math", "--help"}, "Usage", 0},
+		{"command alias", []string{"msg", "Hello"}, "Hey Guest! Hello", 0},
+		{"flag alias", []string{"message", "-t", "John", "Welcome"}, "Hey John! Welcome", 0},
+		{"long flag with space", []string{"message", "How are you doing", "--to", "Emily"}, "Hey Emily! How are you doing", 0},
+		{"long flag with equal sign", []string{"message", "Hi", "--to=Ben"}, "Hey Ben! Hi", 0},
+		{"min argument failure", []string{"message", "--to=Ben"}, "message requires at least 1 argument(s), got 0", 2},
+		{"max argument failure", []string{"message", "--to=Ben", "Hello", "extra"}, "message requires at most 1 argument(s), got 2", 2},
+		{"default flag value", []string{"message", "Hi"}, "Hey Guest! Hi", 0},
+		{"missing subcommand", []string{"math"}, "math requires a subcommand", 2},
+		{"invalid subcommand", []string{"math", "asd"}, "math requires a subcommand", 2},
+		{"multiple arguments", []string{"math", "add", "2", "2"}, "2 + 2 = 4", 0},
+		{"negative argument value", []string{"math", "add", "-2", "2"}, "invalid flag: '-2'", 2},
+		{"(--) seperator support", []string{"math", "add", "--", "-2", "2"}, "-2 + 2 = 0", 0},
 	}
-}
 
-func TestMessageCommand_WithoutArg(t *testing.T) {
-	app := exampleApp()
-	c := app.RunWithArgs([]string{"mycli", "message", "--to", "someone"})
-
-	if c != 2 {
-		t.Fatalf("expected exit code 2 for missing argument, got %d", c)
-	}
-}
-
-func TestMathMulCommand(t *testing.T) {
 	app := exampleApp()
 
-	var out bytes.Buffer
-	w := io.MultiWriter(io.Discard, &out)
-	app.stdout = w
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 
-	app.RunWithArgs([]string{"mycli", "math", "mul", "2", "2"})
+			var out bytes.Buffer
+			w := io.MultiWriter(io.Discard, &out)
+			app.stdout = w
+			app.stderr = w
 
-	sout := out.String()
-	if sout != "2 * 2 = 4\n" {
-		t.Fatalf("unexpected output: %s", sout)
-	}
-}
+			args := append([]string{"mycli"}, tc.args...)
+			code := app.RunWithArgs(args)
 
-func TestMathAddCommand_WithExtraArg(t *testing.T) {
-	app := exampleApp()
-	c := app.RunWithArgs([]string{"mycli", "math", "add", "3", "4", "6"})
+			sout := out.String()
 
-	if c != 2 {
-		t.Fatalf("expected exit code 2 for extra argument, got %d", c)
-	}
-}
-
-func TestMathCommand_WithoutSubcmd(t *testing.T) {
-	app := exampleApp()
-	c := app.RunWithArgs([]string{"mycli", "math"})
-
-	if c != 2 {
-		t.Fatalf("expected exit code 2 for missing subcommand, got %d", c)
+			if code != tc.code {
+				t.Fatalf("Expected exit code: %v, but got: %v", tc.code, code)
+			}
+			if !strings.HasPrefix(sout, tc.out) {
+				t.Fatalf("Expected output: %v, but got: %v", tc.out, sout)
+			}
+		})
 	}
 }
 
