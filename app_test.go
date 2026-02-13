@@ -97,16 +97,6 @@ func exampleApp() *App {
 			b := args[1]
 			fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
 		}).
-		Ok().
-		AddSubcommand("mul").
-		WithShort("Multiplies two numbers").
-		WithMinArg(2).
-		WithMaxArg(2).
-		Action(func(args []string, flags Flags) {
-			a := args[0]
-			b := args[1]
-			fmt.Fprintf(app.Stdout(), "%s * %s = %d\n", a, b, atoi(a)*atoi(b))
-		}).
 		Ok()
 
 	return app
