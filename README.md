@@ -1,12 +1,19 @@
-# Very Simple CLI Parser for Go 🦦
-Lightweight, zero dependencies, and useful for simple command parsing. 
+![Test Status](https://github.com/7ched7/gocli/actions/workflows/test.yml/badge.svg)
 
-## Get Package
+## gocli 🦦
+A lightweight, dependency-free CLI framework for Go. 
+
+### Overview
+This framework provides a fluent interface that allows you to define commands, subcommands, and flags in a single, readable format, unlike standard flag parsing. It handles dynamic help menu generation, alias mapping, argument validation, error handling, and many other things right out of the box, allowing you to focus on your business logic.
+
+### Installation
+
 ```bash
 go get github.com/7ched7/gocli@latest
 ```
 
-## Example Usage
+### Example Usage
+
 ```go
 package main
 
@@ -19,62 +26,40 @@ import (
 )
 
 func main() {
-	app := &gocli.App{
-		Name:    "mycli",
-		Version: "1.0.0",
-		Commands: []gocli.Command{
-			{
-				Name:   "message",
-				Alias:  "msg",
-				Short:  "Send a message",
-				Long:   "Send a message to someone",
-				MinArg: 1,
-				MaxArg: 1,
-				Options: []gocli.Option{
-					{Name: "to", Alias: "t", Value: "", Desc: "Name to send a message to"},
-				},
-				Run: func(args []string, options map[string]gocli.Value) {
-					name := options["to"].String()
-					text := args[0]
+	// Create a new App instance
+	app := gocli.NewApp("mycli").WithVersion("0.1.0")
 
-					if name != "" {
-						fmt.Printf("Hey %s! %s\n", name, text)
-					} else {
-						fmt.Printf("Hey Guest! %s\n", text)
-					}
-				},
-			},
-			{
-				Name:  "math",
-				Short: "Perform simple math operations",
-				Long:  "Perform addition and multiplication operations on numbers",
-				Subcommand: []gocli.Command{
-					{
-						Name:   "add",
-						Short:  "Adds two numbers",
-						MinArg: 2,
-						MaxArg: 2,
-						Run: func(args []string, options map[string]gocli.Value) {
-							a := args[0]
-							b := args[1]
-							fmt.Printf("%s + %s = %d\n", a, b, atoi(a)+atoi(b))
-						},
-					},
-					{
-						Name:   "mul",
-						Short:  "Multiplies two numbers",
-						MinArg: 2,
-						MaxArg: 2,
-						Run: func(args []string, options map[string]gocli.Value) {
-							a := args[0]
-							b := args[1]
-							fmt.Printf("%s * %s = %d\n", a, b, atoi(a)*atoi(b))
-						},
-					},
-				},
-			},
-		},
-	}
+	app.AddCommand("message").
+		WithAlias("msg").
+		WithShort("Send a message").
+		WithLong("Send a message to someone").
+		WithMinArg(1).
+		WithMaxArg(1).
+		AddFlag("to").WithAlias("t").WithDefault("").WithDescription("Name to send a message to").Ok().
+		Action(func(args []string, flags gocli.Flags) {
+			name := flags.String("to")
+			text := args[0]
+
+			if name != "" {
+				fmt.Printf("Hey %s! %s\n", name, text)
+			} else {
+				fmt.Printf("Hey Guest! %s\n", text)
+			}
+		})
+
+	app.AddCommand("math").
+		WithShort("Perform simple math operations").
+		WithLong("Perform addition and multiplication operations on numbers").
+		AddSubcommand("add").
+		WithShort("Adds two numbers").
+		WithMinArg(2).
+		WithMaxArg(2).
+		Action(func(args []string, flags gocli.Flags) {
+			a := args[0]
+			b := args[1]
+			fmt.Printf("%s + %s = %d\n", a, b, atoi(a)+atoi(b))
+		}).
+		Ok()
 
 	os.Exit(app.Run())
 }
@@ -85,57 +70,59 @@ func atoi(s string) int {
 }
 ```
 
-## Example Commands
-```bash
-$ mycli --version
-# mycli version 1.0.0
+### Example Commands
 
+**Help Menu**
+```bash
 $ mycli --help
 # Usage:
-#   mycli [COMMAND] [OPTIONS] [ARGS...]
+#   mycli [COMMAND] [FLAGS] [ARGS...]
 #
 # Commands:
 #   message, msg       Send a message
 #   math               Perform simple math operations
 #
-# Options:
+# Flags:
 #   --help, -h         Show help
 #   --version, -v      Show version
-
+#
 # For more information about a command, use 'mycli <command> --help'.
 
 $ mycli message --help
 # Usage:
-#   mycli message [OPTIONS] [ARG]
+#   mycli message [FLAGS] [ARG]
 #
 # Send a message to someone
 #
-# Options:
+# Flags:
 #   --to, -t           Name to send a message to
+```
 
-$ mycli message Welcome
-# Hey Guest! Welcome
+**Flags**
+```bash
+$ mycli message Welcome --to John
+# Hey John! Welcome
 
-$ mycli msg --to John "How are you doing?" # The order matters, options come before the arguments 
-# Hey John! How are you doing?
+$ mycli message -t=David Welcome
+# Hey David! Welcome
+```
 
-$ mycli math --help
-# Usage:
-#   mycli math [COMMAND]
-#
-# Perform addition and multiplication operations on numbers
-#
-# Commands:
-#   add                Adds two numbers
-#   mul                Multiplies two numbers
-
+**Subcommands**
+```bash
 $ mycli math add 5 7
 # 5 + 7 = 12
 
-$ mycli math mul 3 4
-# 3 * 4 = 12
+$ mycli math add -- -2 3
+# -2 + 3 = 1
 ```
 
-This package is not feature-rich, and is tailored to personal needs. If you are looking for a CLI framework with more advanced features, [see](https://github.com/shadawck/awesome-cli-frameworks?tab=readme-ov-file#go) here. 
+### Customizing Messages
+One of the core features of `gocli` is its flexible message handling. You can override the default behavior for various CLI events to provide a more user-friendly messages. Here is a simple example of how to implement it when a specific type of error occurs:
+
+```go
+app.HandleMessage(gocli.ErrUnknownCommand, func(app *gocli.App, err gocli.CLIError) string {
+	return fmt.Sprintf("'%s' is not a valid command. See '%s --help'.\n", err.Data["command"], app.Name())
+})
+```
 
 **[License MIT](LICENSE)**
