@@ -27,6 +27,14 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 		return nil, nil, a.stop(ErrCommandHelp, cmd, nil)
 	}
 
+	// If a command has subcommands but no defined flags or action function,
+	// then a subcommand is required
+	if len(cmd.subcommands) > 0 && len(cmd.flags) == 0 && cmd.action == nil {
+		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
+			"command": cmd.name,
+		})
+	}
+
 	// Add default flag values to flags map
 	for _, flag := range cmd.flags {
 		flags.pair[flag.name] = flag.defaultValue
@@ -54,121 +62,190 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 			continue
 		}
 
-		// Extract flag
-		var flagName string
-		var flagValue string
-		hasEqualSign := strings.Contains(arg, "=")
-		if hasEqualSign {
-			parts := strings.SplitN(arg, "=", 2)
-			flagName = parts[0]
-			flagValue = parts[1]
+		var newi int
+		var code int
+
+		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
+			newi, code = a.handleShortFlag(cmd, flags, arg, remainingArgs, i)
 		} else {
-			flagName = arg
+			newi, code = a.handleLongFlag(cmd, flags, arg, remainingArgs, i)
 		}
 
-		// Flag validation
-		var matchedFlag *Flag
-		for i := range cmd.flags {
-			flag := cmd.flags[i]
-			if flagName == "--"+flag.name || (flag.alias != "" && flagName == "-"+flag.alias) {
-				matchedFlag = flag
-				break
-			}
+		if code != -1 {
+			return nil, nil, code
 		}
 
-		if matchedFlag == nil {
-			return nil, nil, a.stop(ErrInvalidFlag, cmd, map[string]any{
-				"flag": arg,
-			})
-		}
+		i = newi
+	}
 
-		switch matchedFlag.flagType {
-		case Bool:
-			if flagValue == "" && !hasEqualSign {
-				flagValue = "true"
-			}
-		default:
-			if flagValue == "" {
-				if i+1 < len(remainingArgs) {
-					flagValue = remainingArgs[i+1]
-					i++
-				} else {
-					return nil, nil, a.stop(ErrFlagValueMissing, cmd, map[string]any{
-						"flag": matchedFlag.name,
-					})
-				}
-			}
-		}
+	if code := a.validateArgCount(cmd, len(args)); code != -1 {
+		return nil, nil, code
+	}
 
-		// Type conversion and validation
-		switch matchedFlag.flagType {
-		case String:
-			flags.pair[matchedFlag.name] = flagValue
+	return args, flags, -1
+}
 
-		case Int:
-			parsed, err := strconv.Atoi(flagValue)
-			if err != nil {
-				return nil, nil, a.stop(ErrInvalidIntValue, cmd, map[string]any{
-					"value": flagValue,
-				})
-			}
-
-			flags.pair[matchedFlag.name] = parsed
-
-		case Float:
-			parsed, err := strconv.ParseFloat(flagValue, 64)
-			if err != nil {
-				return nil, nil, a.stop(ErrInvalidFloatValue, cmd, map[string]any{
-					"value": flagValue,
-				})
-			}
-
-			flags.pair[matchedFlag.name] = parsed
-
-		case Bool:
-			parsed, err := strconv.ParseBool(flagValue)
-			if err != nil {
-				return nil, nil, a.stop(ErrInvalidBoolValue, cmd, map[string]any{
-					"value": flagValue,
-				})
-			}
-
-			flags.pair[matchedFlag.name] = parsed
-
-		default:
-			return nil, nil, a.stop(ErrUnsupportedFlagType, cmd, map[string]any{
-				"value": matchedFlag.defaultValue,
-			})
+func (a *App) findFlagName(cmd *Command, flagName string) (*Flag, int) {
+	var matchedFlag *Flag
+	for i := range cmd.flags {
+		flag := cmd.flags[i]
+		if flagName == "--"+flag.name || (flag.alias != "" && flagName == "-"+flag.alias) {
+			matchedFlag = flag
+			break
 		}
 	}
 
-	// If a command has subcommands but no defined flags or action function,
-	// then a subcommand is required
-	if len(cmd.subcommands) > 0 && len(cmd.flags) == 0 && cmd.action == nil {
-		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
-			"command": cmd.name,
+	if matchedFlag == nil {
+		return nil, a.stop(ErrInvalidFlag, cmd, map[string]any{
+			"flag": flagName,
 		})
 	}
 
-	nargs := len(args)
+	return matchedFlag, -1
+}
 
+func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingArgs []string, i int) (int, int) {
+	var flagName string
+	var flagValue string
+	hasEqualSign := strings.Contains(arg, "=")
+
+	if hasEqualSign {
+		parts := strings.SplitN(arg, "=", 2)
+		flagName = parts[0]
+		flagValue = parts[1]
+	} else {
+		flagName = arg
+	}
+
+	matchedFlag, code := a.findFlagName(cmd, flagName)
+	if code != -1 {
+		return i, code
+	}
+
+	switch matchedFlag.flagType {
+	case Bool:
+		if flagValue == "" && !hasEqualSign {
+			flagValue = "true"
+		}
+	default:
+		if flagValue == "" {
+			if i+1 < len(remainingArgs) && !hasEqualSign { // --flag value
+				flagValue = remainingArgs[i+1]
+				i++
+			} else {
+				return i, a.stop(ErrFlagValueMissing, cmd, map[string]any{
+					"flag": matchedFlag.name,
+				})
+			}
+		}
+	}
+
+	if code := a.setFlagValue(cmd, matchedFlag, flags, flagValue); code != -1 {
+		return i, code
+	}
+
+	return i, -1
+}
+
+func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingArgs []string, i int) (int, int) {
+	for j, f := range arg[1:] {
+		matchedFlag, code := a.findFlagName(cmd, "-"+string(f))
+		if code != -1 {
+			return i, code
+		}
+
+		var flagValue string
+
+		switch matchedFlag.flagType {
+		case Bool:
+			flagValue = "true"
+		default:
+			if j < len(arg[1:])-1 { // -fvalue
+				flagValue = arg[j+2:]
+			} else if i+1 < len(remainingArgs) { // -f value
+				flagValue = remainingArgs[i+1]
+				i++
+			} else {
+				return i, a.stop(ErrFlagValueMissing, cmd, map[string]any{
+					"flag": matchedFlag.alias,
+				})
+			}
+		}
+
+		if code := a.setFlagValue(cmd, matchedFlag, flags, flagValue); code != -1 {
+			return i, code
+		}
+
+		if matchedFlag.flagType != Bool {
+			break
+		}
+	}
+
+	return i, -1
+}
+
+func (a *App) setFlagValue(cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
+	switch matchedFlag.flagType {
+	case String:
+		flags.pair[matchedFlag.name] = flagValue
+
+	case Int:
+		parsed, err := strconv.Atoi(flagValue)
+		if err != nil {
+			return a.stop(ErrInvalidIntValue, cmd, map[string]any{
+				"value": flagValue,
+			})
+		}
+
+		flags.pair[matchedFlag.name] = parsed
+
+	case Float:
+		parsed, err := strconv.ParseFloat(flagValue, 64)
+		if err != nil {
+			return a.stop(ErrInvalidFloatValue, cmd, map[string]any{
+				"value": flagValue,
+			})
+		}
+
+		flags.pair[matchedFlag.name] = parsed
+
+	case Bool:
+		parsed, err := strconv.ParseBool(flagValue)
+		if err != nil {
+			return a.stop(ErrInvalidBoolValue, cmd, map[string]any{
+				"value": flagValue,
+			})
+		}
+
+		flags.pair[matchedFlag.name] = parsed
+
+	default:
+		return a.stop(ErrUnsupportedFlagType, cmd, map[string]any{
+			"value": matchedFlag.defaultValue,
+		})
+	}
+
+	return -1
+}
+
+func (a *App) validateArgCount(cmd *Command, nargs int) int {
 	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
-		return nil, nil, a.stop(ErrUnexpectedArgument, cmd, map[string]any{
+		return a.stop(ErrUnexpectedArgument, cmd, map[string]any{
 			"number": nargs,
 		})
 	}
 	if cmd.minArg > 0 && nargs < cmd.minArg {
-		return nil, nil, a.stop(ErrTooFewArguments, cmd, map[string]any{
+		return a.stop(ErrTooFewArguments, cmd, map[string]any{
 			"number": nargs,
 		})
 	}
 	if cmd.maxArg > 0 && nargs > cmd.maxArg {
-		return nil, nil, a.stop(ErrTooManyArguments, cmd, map[string]any{
+		return a.stop(ErrTooManyArguments, cmd, map[string]any{
 			"number": nargs,
 		})
 	}
 
-	return args, flags, -1
+	return -1
 }
 
 // handleGlobalArgs handles app-specific --help and --version flags.
