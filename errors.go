@@ -2,10 +2,8 @@ package gocli
 
 import "fmt"
 
-// errorType represents the type of CLI error that occurred.
 type errorType int
 
-// List of all CLI error types.
 const (
 	ErrHelp errorType = iota
 	ErrCommandHelp
@@ -41,9 +39,7 @@ func (e CLIError) Error() string {
 	return e.Message
 }
 
-// defaultMessageMap holds the application's exit codes and default error messages.
 var defaultMessageMap = map[errorType]func(*App, *Command, map[string]any) (int, string){
-
 	ErrHelp: func(a *App, _ *Command, _ map[string]any) (int, string) {
 		return 0, a.Help()
 	},
@@ -105,8 +101,6 @@ var defaultMessageMap = map[errorType]func(*App, *Command, map[string]any) (int,
 	},
 }
 
-// getMessageAndExitCode returns the appropriate exit code and message
-// from the defaultMessageMap.
 func getMessageAndExitCode(a *App, errType errorType, cmd *Command, data map[string]any) (int, string) {
 	if fn, ok := defaultMessageMap[errType]; ok {
 		return fn(a, cmd, data)
@@ -114,29 +108,28 @@ func getMessageAndExitCode(a *App, errType errorType, cmd *Command, data map[str
 	return 2, "unknown error"
 }
 
-// stop is a helper function that creates a CLIError with the appropriate code and message,
-// and passes it to the handleError, which returns the exit code.
 func (a *App) stop(errType errorType, cmd *Command, data map[string]any) int {
 	code, message := getMessageAndExitCode(a, errType, cmd, data)
 
-	return a.handleError(CLIError{
+	// create the appropriate CLI error
+	cliErr := CLIError{
 		Code:    code,
 		Type:    errType,
 		Cmd:     cmd,
 		Message: message,
 		Data:    data,
-	})
+	}
+
+	return a.handleError(cliErr)
 }
 
-// handleError processes the given error, prints the appropriate message
-// to stdout or stderr, and returns the exit code.
 func (a *App) handleError(err CLIError) int {
 	var msg string
 	out := a.Stderr()
 
 	if a.customMessageMap != nil {
 		if fn, ok := a.customMessageMap[err.Type]; ok {
-			msg = fn(a, err)
+			msg = fn(a, err) // override the default message
 		}
 	}
 

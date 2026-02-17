@@ -8,13 +8,13 @@ import (
 // App represents the main CLI application.
 // It manages application commands, configurations, and I/O streams.
 type App struct {
-	name             string                                            // Application name
-	version          string                                            // Application version
-	description      string                                            // Application description
-	commands         []*Command                                        // Registered commands
-	stdout           io.Writer                                         // Standard output
-	stderr           io.Writer                                         // Standard error
-	customMessageMap map[errorType]func(app *App, err CLIError) string // Message map for customized messages
+	name             string
+	version          string
+	description      string
+	commands         []*Command
+	stdout           io.Writer
+	stderr           io.Writer
+	customMessageMap map[errorType]func(app *App, err CLIError) string
 }
 
 // Run starts the application with os.Args.

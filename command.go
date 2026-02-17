@@ -4,16 +4,16 @@ package gocli
 // It includes subcommands, flags, argument constraints,
 // and an action function called when the command is run.
 type Command struct {
-	name        string                           // Command name
-	alias       string                           // Optional command alias
-	short       string                           // Short description shown in global help
-	long        string                           // Detailed description shown in command help
-	subcommands []*Command                       // Nested subcommands
-	flags       []*Flag                          // Command-specific flags
-	minArg      int                              // Minimum required argument count
-	maxArg      int                              // Maximum required argument count
-	action      func(args []string, flags Flags) // Execution handler
-	parent      *Command                         // Command pointer for help generation
+	name        string
+	alias       string
+	short       string
+	long        string
+	subcommands []*Command
+	flags       []*Flag
+	minArg      int
+	maxArg      int
+	action      func(args []string, flags Flags)
+	parent      *Command
 }
 
 // AddCommand creates a new top-level command in the application.
@@ -34,14 +34,12 @@ func (c *Command) WithAlias(alias string) *Command {
 }
 
 // WithShort sets the short description for the command.
-// It is displayed in the global help menu.
 func (c *Command) WithShort(short string) *Command {
 	c.short = short
 	return c
 }
 
 // WithLong sets the detailed description for the command.
-// It is displayed in the command-specific help menu.
 func (c *Command) WithLong(long string) *Command {
 	c.long = long
 	return c
@@ -54,7 +52,6 @@ func (c *Command) WithMinArg(min int) *Command {
 }
 
 // WithMaxArg sets the maximum number of positional arguments allowed for the command.
-// Use 0 to remove the maximum limit.
 func (c *Command) WithMaxArg(max int) *Command {
 	c.maxArg = max
 	return c

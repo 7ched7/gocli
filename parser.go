@@ -4,9 +4,6 @@ import (
 	"strings"
 )
 
-// parseCommand processes commands entered by the user,
-// handles different incorrect command input scenarios, edge cases,
-// and finally returns positional arguments and parsed flags.
 func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Flags, int) {
 	args := []string{}
 	flags := &Flags{pair: map[string]any{}}
@@ -234,7 +231,6 @@ func (a *App) validateArgCount(cmd *Command, nargs int) int {
 	return -1
 }
 
-// handleGlobalArgs handles app-specific --help and --version flags.
 func (a *App) handleGlobalArgs(args []string) int {
 	if len(args) < 2 {
 		return a.stop(ErrNoCommand, nil, nil)
@@ -253,7 +249,6 @@ func (a *App) handleGlobalArgs(args []string) int {
 	return -1
 }
 
-// findRootCommand finds and returns the top-level command.
 func (a *App) findRootCommand(input string) (*Command, int) {
 	for i := range a.commands {
 		if a.commands[i].name == input || a.commands[i].alias == input {
@@ -265,7 +260,6 @@ func (a *App) findRootCommand(input string) (*Command, int) {
 	})
 }
 
-// findSubcommand recursively resolves nested subcommands.
 func (a *App) findSubcommand(cmd *Command, args []string) (*Command, []string) {
 	if len(args) == 0 {
 		return cmd, args
@@ -283,8 +277,6 @@ func (a *App) findSubcommand(cmd *Command, args []string) (*Command, []string) {
 	return cmd, args
 }
 
-// runCommand executes the action function of a command,
-// with the positional arguments and parsed args.
 func (a *App) runCommand(
 	cmd *Command,
 	args []string,

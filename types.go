@@ -7,7 +7,6 @@ type Flags struct {
 	pair map[string]any
 }
 
-// flagType represents the type used for a flag value.
 type flagType int
 
 const (
@@ -33,7 +32,6 @@ var defaultValues = map[flagType]any{
 }
 
 var flagTypeHandlerMap = map[flagType]func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int{
-
 	String: func(_ *App, _ *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		flags.pair[matchedFlag.name] = flagValue
 		return -1

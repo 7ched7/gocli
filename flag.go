@@ -4,14 +4,13 @@ package gocli
 // It includes flag name, alias, expected value type, default value,
 // and description for help menu.
 type Flag struct {
-	name         string   // Flag name
-	alias        string   // Optional flag alias
-	flagType     flagType // Flag value type
-	defaultValue any      // Default flag value
-	description  string   // Description shown in help
+	name         string
+	alias        string
+	flagType     flagType
+	defaultValue any
+	description  string
 }
 
-// flagBuilder is a fluent builder used for assigning flags to a command.
 type flagBuilder struct {
 	target *Flag
 	parent *Command
