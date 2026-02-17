@@ -35,6 +35,7 @@ func (o *flagBuilder) WithAlias(alias string) *flagBuilder {
 
 // WithType sets the type for the flag.
 func (o *flagBuilder) WithType(flagType flagType) *flagBuilder {
+	o.target.defaultValue = defaultValues[flagType]
 	o.target.flagType = flagType
 	return o
 }

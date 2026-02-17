@@ -1,7 +1,6 @@
 package gocli
 
 import (
-	"strconv"
 	"strings"
 )
 
@@ -186,43 +185,30 @@ func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingA
 
 func (a *App) setFlagValue(cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 	switch matchedFlag.flagType {
-	case String:
-		flags.pair[matchedFlag.name] = flagValue
-
-	case Int:
-		parsed, err := strconv.Atoi(flagValue)
-		if err != nil {
-			return a.stop(ErrInvalidIntValue, cmd, map[string]any{
-				"value": flagValue,
-			})
+	case StringSlice, IntSlice, FloatSlice, BoolSlice:
+		for _, v := range strings.Split(flagValue, ",") {
+			if code := a.setFlagValueByType(cmd, matchedFlag, flags, v); code != -1 {
+				return code
+			}
 		}
-
-		flags.pair[matchedFlag.name] = parsed
-
-	case Float:
-		parsed, err := strconv.ParseFloat(flagValue, 64)
-		if err != nil {
-			return a.stop(ErrInvalidFloatValue, cmd, map[string]any{
-				"value": flagValue,
-			})
-		}
-
-		flags.pair[matchedFlag.name] = parsed
-
-	case Bool:
-		parsed, err := strconv.ParseBool(flagValue)
-		if err != nil {
-			return a.stop(ErrInvalidBoolValue, cmd, map[string]any{
-				"value": flagValue,
-			})
-		}
-
-		flags.pair[matchedFlag.name] = parsed
-
 	default:
+		if code := a.setFlagValueByType(cmd, matchedFlag, flags, flagValue); code != -1 {
+			return code
+		}
+	}
+	return -1
+}
+
+func (a *App) setFlagValueByType(cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
+	fn, ok := flagTypeHandlerMap[matchedFlag.flagType]
+	if !ok {
 		return a.stop(ErrUnsupportedFlagType, cmd, map[string]any{
-			"value": matchedFlag.defaultValue,
+			"value": matchedFlag.flagType,
 		})
+	}
+
+	if code := fn(a, cmd, matchedFlag, flags, flagValue); code != -1 {
+		return code
 	}
 
 	return -1
