@@ -34,66 +34,66 @@ var defaultValues = map[flagType]any{
 var flagTypeHandlerMap = map[flagType]func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int{
 	String: func(_ *App, _ *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		flags.pair[matchedFlag.name] = flagValue
-		return -1
+		return StateContinue
 	},
 
 	Int: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		i, code := a.parseInt(cmd, flagValue)
-		if code != -1 {
+		if code != StateContinue {
 			return code
 		}
 		flags.pair[matchedFlag.name] = i
-		return -1
+		return StateContinue
 	},
 
 	Float: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		f, code := a.parseFloat(cmd, flagValue)
-		if code != -1 {
+		if code != StateContinue {
 			return code
 		}
 		flags.pair[matchedFlag.name] = f
-		return -1
+		return StateContinue
 	},
 
 	Bool: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		b, code := a.parseBool(cmd, flagValue)
-		if code != -1 {
+		if code != StateContinue {
 			return code
 		}
 		flags.pair[matchedFlag.name] = b
-		return -1
+		return StateContinue
 	},
 
 	StringSlice: func(_ *App, _ *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]string), flagValue)
-		return -1
+		return StateContinue
 	},
 
 	IntSlice: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		i, code := a.parseInt(cmd, flagValue)
-		if code != -1 {
+		if code != StateContinue {
 			return code
 		}
 		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]int), i)
-		return -1
+		return StateContinue
 	},
 
 	FloatSlice: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		f, code := a.parseFloat(cmd, flagValue)
-		if code != -1 {
+		if code != StateContinue {
 			return code
 		}
 		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]float64), f)
-		return -1
+		return StateContinue
 	},
 
 	BoolSlice: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 		b, code := a.parseBool(cmd, flagValue)
-		if code != -1 {
+		if code != StateContinue {
 			return code
 		}
 		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]bool), b)
-		return -1
+		return StateContinue
 	},
 }
 
@@ -104,7 +104,7 @@ func (a *App) parseInt(cmd *Command, flagValue string) (int, int) {
 			"value": flagValue,
 		})
 	}
-	return parsed, -1
+	return parsed, StateContinue
 }
 
 func (a *App) parseFloat(cmd *Command, flagValue string) (float64, int) {
@@ -114,7 +114,7 @@ func (a *App) parseFloat(cmd *Command, flagValue string) (float64, int) {
 			"value": flagValue,
 		})
 	}
-	return parsed, -1
+	return parsed, StateContinue
 }
 
 func (a *App) parseBool(cmd *Command, flagValue string) (bool, int) {
@@ -124,7 +124,7 @@ func (a *App) parseBool(cmd *Command, flagValue string) (bool, int) {
 			"value": flagValue,
 		})
 	}
-	return parsed, -1
+	return parsed, StateContinue
 }
 
 // String returns the value of the flag as a string.

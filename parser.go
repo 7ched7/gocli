@@ -67,18 +67,18 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 			newi, code = a.handleLongFlag(cmd, flags, arg, remainingArgs, i)
 		}
 
-		if code != -1 {
+		if code != StateContinue {
 			return nil, nil, code
 		}
 
 		i = newi
 	}
 
-	if code := a.validateArgCount(cmd, len(args)); code != -1 {
+	if code := a.validateArgCount(cmd, len(args)); code != StateContinue {
 		return nil, nil, code
 	}
 
-	return args, flags, -1
+	return args, flags, StateContinue
 }
 
 func (a *App) findFlagName(cmd *Command, flagName string) (*Flag, int) {
@@ -97,7 +97,7 @@ func (a *App) findFlagName(cmd *Command, flagName string) (*Flag, int) {
 		})
 	}
 
-	return matchedFlag, -1
+	return matchedFlag, StateContinue
 }
 
 func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingArgs []string, i int) (int, int) {
@@ -114,7 +114,7 @@ func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingAr
 	}
 
 	matchedFlag, code := a.findFlagName(cmd, flagName)
-	if code != -1 {
+	if code != StateContinue {
 		return i, code
 	}
 
@@ -136,17 +136,17 @@ func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingAr
 		}
 	}
 
-	if code := a.setFlagValue(cmd, matchedFlag, flags, flagValue); code != -1 {
+	if code := a.setFlagValue(cmd, matchedFlag, flags, flagValue); code != StateContinue {
 		return i, code
 	}
 
-	return i, -1
+	return i, StateContinue
 }
 
 func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingArgs []string, i int) (int, int) {
 	for j, f := range arg[1:] {
 		matchedFlag, code := a.findFlagName(cmd, "-"+string(f))
-		if code != -1 {
+		if code != StateContinue {
 			return i, code
 		}
 
@@ -168,7 +168,7 @@ func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingA
 			}
 		}
 
-		if code := a.setFlagValue(cmd, matchedFlag, flags, flagValue); code != -1 {
+		if code := a.setFlagValue(cmd, matchedFlag, flags, flagValue); code != StateContinue {
 			return i, code
 		}
 
@@ -177,23 +177,23 @@ func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingA
 		}
 	}
 
-	return i, -1
+	return i, StateContinue
 }
 
 func (a *App) setFlagValue(cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 	switch matchedFlag.flagType {
 	case StringSlice, IntSlice, FloatSlice, BoolSlice:
 		for _, v := range strings.Split(flagValue, ",") {
-			if code := a.setFlagValueByType(cmd, matchedFlag, flags, v); code != -1 {
+			if code := a.setFlagValueByType(cmd, matchedFlag, flags, v); code != StateContinue {
 				return code
 			}
 		}
 	default:
-		if code := a.setFlagValueByType(cmd, matchedFlag, flags, flagValue); code != -1 {
+		if code := a.setFlagValueByType(cmd, matchedFlag, flags, flagValue); code != StateContinue {
 			return code
 		}
 	}
-	return -1
+	return StateContinue
 }
 
 func (a *App) setFlagValueByType(cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
@@ -204,11 +204,11 @@ func (a *App) setFlagValueByType(cmd *Command, matchedFlag *Flag, flags *Flags, 
 		})
 	}
 
-	if code := fn(a, cmd, matchedFlag, flags, flagValue); code != -1 {
+	if code := fn(a, cmd, matchedFlag, flags, flagValue); code != StateContinue {
 		return code
 	}
 
-	return -1
+	return StateContinue
 }
 
 func (a *App) validateArgCount(cmd *Command, nargs int) int {
@@ -228,7 +228,7 @@ func (a *App) validateArgCount(cmd *Command, nargs int) int {
 		})
 	}
 
-	return -1
+	return StateContinue
 }
 
 func (a *App) handleGlobalArgs(args []string) int {
@@ -246,13 +246,13 @@ func (a *App) handleGlobalArgs(args []string) int {
 		}
 	}
 
-	return -1
+	return StateContinue
 }
 
 func (a *App) findRootCommand(input string) (*Command, int) {
 	for i := range a.commands {
 		if a.commands[i].name == input || a.commands[i].alias == input {
-			return a.commands[i], -1
+			return a.commands[i], StateContinue
 		}
 	}
 	return nil, a.stop(ErrUnknownCommand, nil, map[string]any{

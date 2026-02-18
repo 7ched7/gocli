@@ -17,6 +17,13 @@ type App struct {
 	customMessageMap map[errorType]func(app *App, err CLIError) string
 }
 
+const (
+	StateContinue = -1
+	ExitOK        = 0
+	ExitError     = 1
+	ExitUsage     = 2
+)
+
 // Run starts the application with os.Args.
 // It is the main entry point when the CLI is executed.
 func (a *App) Run() int {
@@ -26,24 +33,24 @@ func (a *App) Run() int {
 // RunWithArgs starts the application with a custom set of arguments.
 // It is useful for testing or integrating the CLI with another program.
 func (a *App) RunWithArgs(args []string) int {
-	if code := a.handleGlobalArgs(args); code != -1 {
+	if code := a.handleGlobalArgs(args); code != StateContinue {
 		return code
 	}
 
 	cmd, code := a.findRootCommand(args[1])
-	if code != -1 {
+	if code != StateContinue {
 		return code
 	}
 
 	cmd, remainingArgs := a.findSubcommand(cmd, args[2:])
 
-	args, flags, err := a.parseCommand(cmd, remainingArgs)
-	if err != -1 {
-		return err
+	args, flags, code := a.parseCommand(cmd, remainingArgs)
+	if code != StateContinue {
+		return code
 	}
 
 	a.runCommand(cmd, args, *flags)
-	return 0
+	return ExitOK
 }
 
 // NewApp creates and returns a new App instance

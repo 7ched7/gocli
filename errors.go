@@ -41,75 +41,75 @@ func (e CLIError) Error() string {
 
 var defaultMessageMap = map[errorType]func(*App, *Command, map[string]any) (int, string){
 	ErrHelp: func(a *App, _ *Command, _ map[string]any) (int, string) {
-		return 0, a.Help()
+		return ExitOK, a.Help()
 	},
 
 	ErrCommandHelp: func(a *App, cmd *Command, _ map[string]any) (int, string) {
-		return 0, a.CommandHelp(cmd)
+		return ExitOK, a.CommandHelp(cmd)
 	},
 
 	ErrVersion: func(a *App, _ *Command, _ map[string]any) (int, string) {
-		return 0, fmt.Sprintf("%s version %s\n", a.name, a.version)
+		return ExitOK, fmt.Sprintf("%s version %s\n", a.name, a.version)
 	},
 
 	ErrNoCommand: func(a *App, _ *Command, _ map[string]any) (int, string) {
-		return 0, a.Help()
+		return ExitUsage, a.Help()
 	},
 
 	ErrUnknownCommand: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("unknown command: '%s'\n", data["command"])
+		return ExitUsage, fmt.Sprintf("unknown command: '%s'\n", data["command"])
 	},
 
 	ErrSubcommandRequired: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s requires a subcommand\n", data["command"])
+		return ExitUsage, fmt.Sprintf("'%s' requires a subcommand\n", data["command"])
 	},
 
 	ErrInvalidFlag: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("invalid flag: '%s'\n", data["flag"])
+		return ExitUsage, fmt.Sprintf("invalid flag: '%s'\n", data["flag"])
 	},
 
 	ErrFlagValueMissing: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("value required for flag: '%s'\n", data["flag"])
+		return ExitUsage, fmt.Sprintf("value required for flag: '%s'\n", data["flag"])
 	},
 
 	ErrUnexpectedArgument: func(_ *App, cmd *Command, _ map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s does not accept argument(s)\n", cmd.name)
+		return ExitUsage, fmt.Sprintf("'%s' does not accept argument(s)\n", cmd.name)
 	},
 
 	ErrTooFewArguments: func(_ *App, cmd *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s requires at least %d argument(s), got %d\n", cmd.name, cmd.minArg, data["number"])
+		return ExitUsage, fmt.Sprintf("'%s' requires at least %d argument(s), got %d\n", cmd.name, cmd.minArg, data["number"])
 	},
 
 	ErrTooManyArguments: func(_ *App, cmd *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("%s requires at most %d argument(s), got %d\n", cmd.name, cmd.maxArg, data["number"])
+		return ExitUsage, fmt.Sprintf("'%s' requires at most %d argument(s), got %d\n", cmd.name, cmd.maxArg, data["number"])
 	},
 
 	ErrInvalidIntValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("int parse error: '%s'\n", data["value"])
+		return ExitUsage, fmt.Sprintf("int parse error: '%s'\n", data["value"])
 	},
 
 	ErrInvalidFloatValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("float parse error: '%s'\n", data["value"])
+		return ExitUsage, fmt.Sprintf("float parse error: '%s'\n", data["value"])
 	},
 
 	ErrInvalidBoolValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("bool parse error: '%s'\n", data["value"])
+		return ExitUsage, fmt.Sprintf("bool parse error: '%s'\n", data["value"])
 	},
 
 	ErrUnsupportedFlagType: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return 2, fmt.Sprintf("unsupported type: '%s'\n", fmt.Sprintf("%T", data["value"]))
+		return ExitUsage, fmt.Sprintf("unsupported type: '%s'\n", fmt.Sprintf("%T", data["value"]))
 	},
 }
 
-func getMessageAndExitCode(a *App, errType errorType, cmd *Command, data map[string]any) (int, string) {
+func (a *App) getMessageAndExitCode(errType errorType, cmd *Command, data map[string]any) (int, string) {
 	if fn, ok := defaultMessageMap[errType]; ok {
 		return fn(a, cmd, data)
 	}
-	return 2, "unknown error"
+	return ExitError, "unknown error"
 }
 
 func (a *App) stop(errType errorType, cmd *Command, data map[string]any) int {
-	code, message := getMessageAndExitCode(a, errType, cmd, data)
+	code, message := a.getMessageAndExitCode(errType, cmd, data)
 
 	// create the appropriate CLI error
 	cliErr := CLIError{
@@ -137,7 +137,7 @@ func (a *App) handleError(err CLIError) int {
 		msg = err.Message
 	}
 
-	if err.Code == 0 {
+	if err.Code == ExitOK {
 		out = a.Stdout()
 	}
 
