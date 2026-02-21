@@ -16,7 +16,7 @@ func TestApp(t *testing.T) {
 		out  string
 		code int
 	}{
-		{"global no command", []string{}, "Usage:", 0},
+		{"global no command", []string{}, "Usage:", 2},
 		{"global help flag", []string{"--help"}, "Usage:", 0},
 		{"global version flag", []string{"--version"}, "mycli version 0.1.0", 0},
 		{"global invalid command", []string{"asd"}, "unknown command: 'asd'", 2},
@@ -26,11 +26,11 @@ func TestApp(t *testing.T) {
 		{"flag alias", []string{"message", "-t", "John", "Welcome"}, "Hey John! Welcome", 0},
 		{"long flag with space", []string{"message", "How are you doing", "--to", "Emily"}, "Hey Emily! How are you doing", 0},
 		{"long flag with equal sign", []string{"message", "Hi", "--to=Ben"}, "Hey Ben! Hi", 0},
-		{"min argument failure", []string{"message", "--to=Ben"}, "message requires at least 1 argument(s), got 0", 2},
-		{"max argument failure", []string{"message", "--to=Ben", "Hello", "extra"}, "message requires at most 1 argument(s), got 2", 2},
+		{"min argument failure", []string{"message", "--to=Ben"}, "'message' requires at least 1 argument(s), got 0", 2},
+		{"max argument failure", []string{"message", "--to=Ben", "Hello", "extra"}, "'message' requires at most 1 argument(s), got 2", 2},
 		{"default flag value", []string{"message", "Hi"}, "Hey Guest! Hi", 0},
-		{"missing subcommand", []string{"math"}, "math requires a subcommand", 2},
-		{"invalid subcommand", []string{"math", "asd"}, "math requires a subcommand", 2},
+		{"missing subcommand", []string{"math"}, "'math' requires a subcommand", 2},
+		{"invalid subcommand", []string{"math", "asd"}, "'math' requires a subcommand", 2},
 		{"multiple arguments", []string{"math", "add", "2", "2"}, "2 + 2 = 4", 0},
 		{"negative argument value", []string{"math", "add", "-2", "2"}, "invalid flag: '-2'", 2},
 		{"(--) seperator support", []string{"math", "add", "--", "-2", "2"}, "-2 + 2 = 0", 0},
@@ -67,13 +67,13 @@ func exampleApp() *App {
 	app.WithStdout(io.Discard)
 	app.WithStderr(io.Discard)
 
-	app.AddCommand("message").
+	messageCmd := app.NewCommand("message").
 		WithAlias("msg").
 		WithShort("Send a message").
 		WithLong("Send a message to someone").
 		WithMinArg(1).
 		WithMaxArg(1).
-		AddFlag("to").WithAlias("t").WithDefault("").WithDescription("Name to send a message to").Ok().
+		AddFlag(app.NewFlag("to").WithAlias("t").WithDefault("").WithDescription("Name to send a message to")).
 		Action(func(args []string, flags Flags) {
 			name := flags.String("to")
 			text := args[0]
@@ -85,19 +85,22 @@ func exampleApp() *App {
 			}
 		})
 
-	app.AddCommand("math").
+	mathCmd := app.NewCommand("math").
 		WithShort("Perform simple math operations").
 		WithLong("Perform addition and multiplication operations on numbers").
-		AddSubcommand("add").
-		WithShort("Adds two numbers").
-		WithMinArg(2).
-		WithMaxArg(2).
-		Action(func(args []string, flags Flags) {
-			a := args[0]
-			b := args[1]
-			fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
-		}).
-		Ok()
+		AddSubcommand(
+			app.NewCommand("add").
+				WithShort("Adds two numbers").
+				WithMinArg(2).
+				WithMaxArg(2).
+				Action(func(args []string, flags Flags) {
+					a := args[0]
+					b := args[1]
+					fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
+				}))
+
+	app.AddCommand(messageCmd)
+	app.AddCommand(mathCmd)
 
 	return app
 }

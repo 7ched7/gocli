@@ -11,64 +11,53 @@ type Flag struct {
 	description  string
 }
 
-type flagBuilder struct {
-	target *Flag
-	parent *Command
+// NewFlag creates a new flag with the given name.
+func (c *App) NewFlag(name string) *Flag {
+	return &Flag{name: name}
 }
 
-// AddFlag creates a new flag for a command.
-// It returns flagBuilder that provides a fluent interface.
-func (c *Command) AddFlag(name string) *flagBuilder {
-	o := &Flag{name: name}
-	return &flagBuilder{
-		target: o,
-		parent: c,
-	}
+// AddFlag registers a flag to the command.
+func (c *Command) AddFlag(flag *Flag) *Command {
+	c.flags = append(c.flags, flag)
+	return c
 }
 
 // WithAlias sets the alias for the flag.
-func (o *flagBuilder) WithAlias(alias string) *flagBuilder {
-	o.target.alias = alias
-	return o
+func (f *Flag) WithAlias(alias string) *Flag {
+	f.alias = alias
+	return f
 }
 
 // WithType sets the type for the flag.
-func (o *flagBuilder) WithType(flagType flagType) *flagBuilder {
-	o.target.defaultValue = defaultValues[flagType]
-	o.target.flagType = flagType
-	return o
+func (f *Flag) WithType(flagType flagType) *Flag {
+	f.defaultValue = defaultValues[flagType]
+	f.flagType = flagType
+	return f
 }
 
 // WithDefault sets the default value for the flag.
-func (o *flagBuilder) WithDefault(defaultValue any) *flagBuilder {
-	o.target.defaultValue = defaultValue
-	return o
+func (f *Flag) WithDefault(defaultValue any) *Flag {
+	f.defaultValue = defaultValue
+	return f
 }
 
 // WithDescription sets the description for the flag.
-func (o *flagBuilder) WithDescription(description string) *flagBuilder {
-	o.target.description = description
-	return o
-}
-
-// Ok finalizes the flag, adds it to the parent command,
-// and returns the parent command for chaining.
-func (o *flagBuilder) Ok() *Command {
-	o.parent.flags = append(o.parent.flags, o.target)
-	return o.parent
+func (f *Flag) WithDescription(description string) *Flag {
+	f.description = description
+	return f
 }
 
 // Name returns the name of the flag.
-func (o *Flag) Name() string { return o.name }
+func (f *Flag) Name() string { return f.name }
 
 // Alias returns the alias of the flag.
-func (o *Flag) Alias() string { return o.alias }
+func (f *Flag) Alias() string { return f.alias }
 
 // Type returns the type of the flag.
-func (o *Flag) Type() flagType { return o.flagType }
+func (f *Flag) Type() flagType { return f.flagType }
 
 // Default returns the default value of the flag.
-func (o *Flag) Default() any { return o.defaultValue }
+func (f *Flag) Default() any { return f.defaultValue }
 
 // Description returns the description of the flag.
-func (o *Flag) Description() string { return o.description }
+func (f *Flag) Description() string { return f.description }

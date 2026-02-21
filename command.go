@@ -16,15 +16,19 @@ type Command struct {
 	parent      *Command
 }
 
-// AddCommand creates a new top-level command in the application.
-func (a *App) AddCommand(name string) *Command {
-	c := &Command{
+// NewCommand creates a new command with the given name.
+func (a *App) NewCommand(name string) *Command {
+	return &Command{
 		name:        name,
 		flags:       []*Flag{},
 		subcommands: []*Command{},
 	}
-	a.commands = append(a.commands, c)
-	return c
+}
+
+// AddCommand registers a top-level command to the application.
+func (a *App) AddCommand(command *Command) *App {
+	a.commands = append(a.commands, command)
+	return a
 }
 
 // WithAlias sets the short alias for the command.
@@ -57,17 +61,10 @@ func (c *Command) WithMaxArg(max int) *Command {
 	return c
 }
 
-// AddSubcommand creates a new command under the current command.
-// It returns the newly created subcommand for chaining.
-func (c *Command) AddSubcommand(name string) *Command {
-	sub := &Command{name: name, parent: c}
-	c.subcommands = append(c.subcommands, sub)
-	return sub
-}
-
-// Ok finalizes the command, and returns to the parent command.
-func (c *Command) Ok() *Command {
-	return c.parent
+// AddSubcommand registers a subcommand to the current command.
+func (c *Command) AddSubcommand(subcommand *Command) *Command {
+	c.subcommands = append(c.subcommands, subcommand)
+	return c
 }
 
 // Action assigns the function to be executed when the command is run.
