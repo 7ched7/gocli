@@ -1,6 +1,7 @@
 package gocli
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -65,7 +66,7 @@ func (a *App) parseCommand(args []string) (*Command, []string, *Flags, int) {
 	}
 
 	if len(cmd.subcommands) > 0 && cmd.minArg == 0 && cmd.maxArg == 0 {
-		return nil, nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
+		return nil, nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]string{
 			"command": cmd.name,
 		})
 	}
@@ -100,7 +101,7 @@ func (a *App) handleArgument(cmd *Command, flags *Flags, arg string, pargs []str
 
 	if !isCmd {
 		if cmd == a.root && cmd.minArg == 0 && cmd.maxArg == 0 {
-			return nil, nil, a.stop(ErrUnknownCommand, cmd, map[string]any{
+			return nil, nil, a.stop(ErrUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
@@ -140,7 +141,7 @@ func (a *App) findFlagName(cmd *Command, flagName string) (*Flag, int) {
 	}
 
 	if matchedFlag == nil {
-		return nil, a.stop(ErrInvalidFlag, cmd, map[string]any{
+		return nil, a.stop(ErrInvalidFlag, cmd, map[string]string{
 			"flag": flagName,
 		})
 	}
@@ -177,7 +178,7 @@ func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, args []stri
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.stop(ErrFlagValueMissing, cmd, map[string]any{
+				return i, a.stop(ErrFlagValueMissing, cmd, map[string]string{
 					"flag": matchedFlag.name,
 				})
 			}
@@ -210,7 +211,7 @@ func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, args []str
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.stop(ErrFlagValueMissing, cmd, map[string]any{
+				return i, a.stop(ErrFlagValueMissing, cmd, map[string]string{
 					"flag": matchedFlag.alias,
 				})
 			}
@@ -247,8 +248,8 @@ func (a *App) setFlagValue(cmd *Command, matchedFlag *Flag, flags *Flags, flagVa
 func (a *App) setFlagValueByType(cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
 	fn, ok := flagTypeHandlerMap[matchedFlag.flagType]
 	if !ok {
-		return a.stop(ErrUnsupportedFlagType, cmd, map[string]any{
-			"value": matchedFlag.flagType,
+		return a.stop(ErrUnsupportedFlagType, cmd, map[string]string{
+			"value": fmt.Sprint(matchedFlag.flagType),
 		})
 	}
 
@@ -261,18 +262,18 @@ func (a *App) setFlagValueByType(cmd *Command, matchedFlag *Flag, flags *Flags, 
 
 func (a *App) validateArgCount(cmd *Command, nargs int) int {
 	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
-		return a.stop(ErrUnexpectedArgument, cmd, map[string]any{
-			"number": nargs,
+		return a.stop(ErrUnexpectedArgument, cmd, map[string]string{
+			"number": fmt.Sprint(nargs),
 		})
 	}
 	if cmd.minArg > 0 && nargs < cmd.minArg {
-		return a.stop(ErrTooFewArguments, cmd, map[string]any{
-			"number": nargs,
+		return a.stop(ErrTooFewArguments, cmd, map[string]string{
+			"number": fmt.Sprint(nargs),
 		})
 	}
 	if cmd.maxArg > 0 && nargs > cmd.maxArg {
-		return a.stop(ErrTooManyArguments, cmd, map[string]any{
-			"number": nargs,
+		return a.stop(ErrTooManyArguments, cmd, map[string]string{
+			"number": fmt.Sprint(nargs),
 		})
 	}
 

@@ -100,7 +100,7 @@ var flagTypeHandlerMap = map[flagType]func(a *App, cmd *Command, matchedFlag *Fl
 func (a *App) parseInt(cmd *Command, flagValue string) (int, int) {
 	parsed, err := strconv.Atoi(flagValue)
 	if err != nil {
-		return 0, a.stop(ErrInvalidIntValue, cmd, map[string]any{
+		return 0, a.stop(ErrInvalidIntValue, cmd, map[string]string{
 			"value": flagValue,
 		})
 	}
@@ -110,7 +110,7 @@ func (a *App) parseInt(cmd *Command, flagValue string) (int, int) {
 func (a *App) parseFloat(cmd *Command, flagValue string) (float64, int) {
 	parsed, err := strconv.ParseFloat(flagValue, 64)
 	if err != nil {
-		return 0.0, a.stop(ErrInvalidFloatValue, cmd, map[string]any{
+		return 0.0, a.stop(ErrInvalidFloatValue, cmd, map[string]string{
 			"value": flagValue,
 		})
 	}
@@ -120,7 +120,7 @@ func (a *App) parseFloat(cmd *Command, flagValue string) (float64, int) {
 func (a *App) parseBool(cmd *Command, flagValue string) (bool, int) {
 	parsed, err := strconv.ParseBool(flagValue)
 	if err != nil {
-		return false, a.stop(ErrInvalidBoolValue, cmd, map[string]any{
+		return false, a.stop(ErrInvalidBoolValue, cmd, map[string]string{
 			"value": flagValue,
 		})
 	}

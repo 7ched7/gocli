@@ -26,11 +26,11 @@ const (
 // It includes an exit code, message, error type, and optional command pointer,
 // as well as extra metadata.
 type CLIError struct {
-	Code    int            // Exit code
-	Message string         // Error message
-	Type    errorType      // Error type
-	Cmd     *Command       // Command pointer
-	Data    map[string]any // Extra information
+	Code    int               // Exit code
+	Message string            // Error message
+	Type    errorType         // Error type
+	Cmd     *Command          // Command pointer
+	Data    map[string]string // Extra information
 }
 
 // Error implements the built-in error interface,
@@ -39,76 +39,76 @@ func (e CLIError) Error() string {
 	return e.Message
 }
 
-var defaultMessageMap = map[errorType]func(*App, *Command, map[string]any) (int, string){
-	ErrHelp: func(a *App, _ *Command, _ map[string]any) (int, string) {
+var defaultMessageMap = map[errorType]func(*App, *Command, map[string]string) (int, string){
+	ErrHelp: func(a *App, _ *Command, _ map[string]string) (int, string) {
 		return ExitOK, a.Help()
 	},
 
-	ErrCommandHelp: func(a *App, cmd *Command, _ map[string]any) (int, string) {
+	ErrCommandHelp: func(a *App, cmd *Command, _ map[string]string) (int, string) {
 		return ExitOK, a.CommandHelp(cmd)
 	},
 
-	ErrVersion: func(a *App, _ *Command, _ map[string]any) (int, string) {
+	ErrVersion: func(a *App, _ *Command, _ map[string]string) (int, string) {
 		return ExitOK, fmt.Sprintf("%s version %s\n", a.name, a.version)
 	},
 
-	ErrNoCommand: func(a *App, _ *Command, _ map[string]any) (int, string) {
+	ErrNoCommand: func(a *App, _ *Command, _ map[string]string) (int, string) {
 		return ExitUsage, a.Help()
 	},
 
-	ErrUnknownCommand: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrUnknownCommand: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("unknown command: '%s'\n", data["command"])
 	},
 
-	ErrSubcommandRequired: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrSubcommandRequired: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("'%s' requires a subcommand\n", data["command"])
 	},
 
-	ErrInvalidFlag: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrInvalidFlag: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("invalid flag: '%s'\n", data["flag"])
 	},
 
-	ErrFlagValueMissing: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrFlagValueMissing: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("value required for flag: '%s'\n", data["flag"])
 	},
 
-	ErrUnexpectedArgument: func(_ *App, cmd *Command, _ map[string]any) (int, string) {
+	ErrUnexpectedArgument: func(_ *App, cmd *Command, _ map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("'%s' does not accept argument(s)\n", cmd.name)
 	},
 
-	ErrTooFewArguments: func(_ *App, cmd *Command, data map[string]any) (int, string) {
-		return ExitUsage, fmt.Sprintf("'%s' requires at least %d argument(s), got %d\n", cmd.name, cmd.minArg, data["number"])
+	ErrTooFewArguments: func(_ *App, cmd *Command, data map[string]string) (int, string) {
+		return ExitUsage, fmt.Sprintf("'%s' requires at least %d argument(s), got %s\n", cmd.name, cmd.minArg, data["number"])
 	},
 
-	ErrTooManyArguments: func(_ *App, cmd *Command, data map[string]any) (int, string) {
-		return ExitUsage, fmt.Sprintf("'%s' requires at most %d argument(s), got %d\n", cmd.name, cmd.maxArg, data["number"])
+	ErrTooManyArguments: func(_ *App, cmd *Command, data map[string]string) (int, string) {
+		return ExitUsage, fmt.Sprintf("'%s' requires at most %d argument(s), got %s\n", cmd.name, cmd.maxArg, data["number"])
 	},
 
-	ErrInvalidIntValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrInvalidIntValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("int parse error: '%s'\n", data["value"])
 	},
 
-	ErrInvalidFloatValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrInvalidFloatValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("float parse error: '%s'\n", data["value"])
 	},
 
-	ErrInvalidBoolValue: func(_ *App, _ *Command, data map[string]any) (int, string) {
+	ErrInvalidBoolValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("bool parse error: '%s'\n", data["value"])
 	},
 
-	ErrUnsupportedFlagType: func(_ *App, _ *Command, data map[string]any) (int, string) {
-		return ExitUsage, fmt.Sprintf("unsupported type: '%s'\n", fmt.Sprintf("%T", data["value"]))
+	ErrUnsupportedFlagType: func(_ *App, _ *Command, data map[string]string) (int, string) {
+		return ExitUsage, fmt.Sprintf("unsupported type: '%s'\n", data["value"])
 	},
 }
 
-func (a *App) getMessageAndExitCode(errType errorType, cmd *Command, data map[string]any) (int, string) {
+func (a *App) getMessageAndExitCode(errType errorType, cmd *Command, data map[string]string) (int, string) {
 	if fn, ok := defaultMessageMap[errType]; ok {
 		return fn(a, cmd, data)
 	}
 	return ExitError, "unknown error"
 }
 
-func (a *App) stop(errType errorType, cmd *Command, data map[string]any) int {
+func (a *App) stop(errType errorType, cmd *Command, data map[string]string) int {
 	code, message := a.getMessageAndExitCode(errType, cmd, data)
 
 	// create the appropriate CLI error
