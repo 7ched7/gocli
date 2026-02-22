@@ -14,6 +14,7 @@ const (
 	Int
 	Float
 	Bool
+	Enum
 	StringSlice
 	IntSlice
 	FloatSlice
@@ -25,6 +26,7 @@ var defaultValues = map[flagType]any{
 	Int:         0,
 	Float:       0.0,
 	Bool:        false,
+	Enum:        "",
 	StringSlice: []string{},
 	IntSlice:    []int{},
 	FloatSlice:  []float64{},
@@ -61,6 +63,14 @@ var flagTypeHandlerMap = map[flagType]func(a *App, cmd *Command, matchedFlag *Fl
 			return code
 		}
 		flags.pair[matchedFlag.name] = b
+		return StateContinue
+	},
+
+	Enum: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
+		if code := a.checkEnumValue(cmd, matchedFlag, flagValue); code != StateContinue {
+			return code
+		}
+		flags.pair[matchedFlag.name] = flagValue
 		return StateContinue
 	},
 
@@ -125,6 +135,17 @@ func (a *App) parseBool(cmd *Command, flagValue string) (bool, int) {
 		})
 	}
 	return parsed, StateContinue
+}
+
+func (a *App) checkEnumValue(cmd *Command, matchedFlag *Flag, flagValue string) int {
+	for _, v := range matchedFlag.allowedValues {
+		if flagValue == v {
+			return StateContinue
+		}
+	}
+	return a.stop(ErrInvalidFlagValue, cmd, map[string]string{
+		"value": flagValue,
+	})
 }
 
 // String returns the value of the flag as a string.

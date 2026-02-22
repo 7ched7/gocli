@@ -4,11 +4,12 @@ package gocli
 // It includes flag name, alias, expected value type, default value,
 // and description for help menu.
 type Flag struct {
-	name         string
-	alias        string
-	flagType     flagType
-	defaultValue any
-	description  string
+	name          string
+	alias         string
+	flagType      flagType
+	defaultValue  any
+	description   string
+	allowedValues []string
 }
 
 // NewFlag creates a new flag with the given name.
@@ -53,6 +54,12 @@ func (f *Flag) WithDescription(description string) *Flag {
 	return f
 }
 
+// WithEnum sets the allowed values for the flag.
+func (f *Flag) WithEnum(values ...string) *Flag {
+	f.allowedValues = values
+	return f
+}
+
 // Name returns the name of the flag.
 func (f *Flag) Name() string { return f.name }
 
@@ -67,3 +74,6 @@ func (f *Flag) Default() any { return f.defaultValue }
 
 // Description returns the description of the flag.
 func (f *Flag) Description() string { return f.description }
+
+// AllowedValues returns the allowed values of the flag.
+func (f *Flag) AllowedValues() []string { return f.allowedValues }

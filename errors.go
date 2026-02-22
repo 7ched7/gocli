@@ -12,6 +12,7 @@ const (
 	ErrUnknownCommand
 	ErrSubcommandRequired
 	ErrInvalidFlag
+	ErrInvalidFlagValue
 	ErrFlagValueMissing
 	ErrUnexpectedArgument
 	ErrTooFewArguments
@@ -66,6 +67,10 @@ var defaultMessageMap = map[errorType]func(*App, *Command, map[string]string) (i
 
 	ErrInvalidFlag: func(_ *App, _ *Command, data map[string]string) (int, string) {
 		return ExitUsage, fmt.Sprintf("invalid flag: '%s'\n", data["flag"])
+	},
+
+	ErrInvalidFlagValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
+		return ExitUsage, fmt.Sprintf("invalid flag value: '%s'\n", data["value"])
 	},
 
 	ErrFlagValueMissing: func(_ *App, _ *Command, data map[string]string) (int, string) {
