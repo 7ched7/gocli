@@ -22,6 +22,12 @@ func (c *Command) AddFlag(flag *Flag) *Command {
 	return c
 }
 
+// AddGlobalFlag registers a global flag to the application.
+func (a *App) AddGlobalFlag(flag *Flag) *App {
+	a.globalFlags = append(a.globalFlags, flag)
+	return a
+}
+
 // WithAlias sets the alias for the flag.
 func (f *Flag) WithAlias(alias string) *Flag {
 	f.alias = alias

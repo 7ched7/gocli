@@ -4,45 +4,26 @@ import (
 	"strings"
 )
 
-func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Flags, int) {
-	args := []string{}
+func (a *App) parseCommand(args []string) (*Command, []string, *Flags, int) {
+	if a.root.action == nil && len(args) == 0 {
+		return nil, nil, nil, a.stop(ErrNoCommand, nil, nil)
+	}
+
+	cmd := a.root
+	pargs := []string{}
 	flags := &Flags{pair: map[string]any{}}
+	positionalOnly := false
 
-	hasHelpFlag := false
-	for _, arg := range remainingArgs {
-		if arg == "--" {
-			break
-		}
-		if arg == "--help" || arg == "-h" {
-			hasHelpFlag = true
-			break
-		}
-	}
-
-	if hasHelpFlag {
-		return nil, nil, a.stop(ErrCommandHelp, cmd, nil)
-	}
-
-	// If a command has subcommands but no defined flags or action function,
-	// then a subcommand is required
-	if len(cmd.subcommands) > 0 && len(cmd.flags) == 0 && cmd.action == nil {
-		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
-			"command": cmd.name,
-		})
-	}
-
-	// Add default flag values to flags map
-	for _, flag := range cmd.flags {
+	// Default global flag values mapping
+	for _, flag := range a.globalFlags {
 		flags.pair[flag.name] = flag.defaultValue
 	}
 
-	positionalOnly := false
-
-	for i := 0; i < len(remainingArgs); i++ {
-		arg := remainingArgs[i]
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 
 		if positionalOnly {
-			args = append(args, arg)
+			pargs = append(pargs, arg)
 			continue
 		}
 
@@ -52,42 +33,109 @@ func (a *App) parseCommand(cmd *Command, remainingArgs []string) ([]string, *Fla
 			continue
 		}
 
+		var code int
+		var newi int
+
 		// Positional argument
 		if !strings.HasPrefix(arg, "-") {
-			args = append(args, arg)
+			cmd, pargs, code = a.handleArgument(cmd, flags, arg, pargs)
+			if code != StateContinue {
+				return nil, nil, nil, code
+			}
+
 			continue
 		}
 
-		var newi int
-		var code int
+		code = a.handleHelpAndVersion(arg, cmd)
+		if code != StateContinue {
+			return nil, nil, nil, code
+		}
 
 		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
-			newi, code = a.handleShortFlag(cmd, flags, arg, remainingArgs, i)
+			newi, code = a.handleShortFlag(cmd, flags, arg, args, i)
 		} else {
-			newi, code = a.handleLongFlag(cmd, flags, arg, remainingArgs, i)
+			newi, code = a.handleLongFlag(cmd, flags, arg, args, i)
 		}
 
 		if code != StateContinue {
-			return nil, nil, code
+			return nil, nil, nil, code
 		}
 
 		i = newi
 	}
 
-	if code := a.validateArgCount(cmd, len(args)); code != StateContinue {
-		return nil, nil, code
+	if len(cmd.subcommands) > 0 && cmd.minArg == 0 && cmd.maxArg == 0 {
+		return nil, nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]any{
+			"command": cmd.name,
+		})
 	}
 
-	return args, flags, StateContinue
+	if code := a.validateArgCount(cmd, len(pargs)); code != StateContinue {
+		return nil, nil, nil, code
+	}
+
+	return cmd, pargs, flags, StateContinue
+}
+
+func (a *App) handleArgument(cmd *Command, flags *Flags, arg string, pargs []string) (*Command, []string, int) {
+	isCmd := false
+
+	if len(pargs) == 0 {
+		if cmd == a.root {
+			for i := range a.commands {
+				if a.commands[i].name == arg || a.commands[i].alias == arg {
+					isCmd = true
+					cmd = a.commands[i]
+				}
+			}
+		} else {
+			for i := range cmd.subcommands {
+				if cmd.subcommands[i].name == arg || cmd.subcommands[i].alias == arg {
+					isCmd = true
+					cmd = cmd.subcommands[i]
+				}
+			}
+		}
+	}
+
+	if !isCmd {
+		if cmd == a.root && cmd.minArg == 0 && cmd.maxArg == 0 {
+			return nil, nil, a.stop(ErrUnknownCommand, cmd, map[string]any{
+				"command": arg,
+			})
+		}
+
+		pargs = append(pargs, arg)
+	} else {
+		// Default command flag values mapping
+		for _, flag := range cmd.flags {
+			flags.pair[flag.name] = flag.defaultValue
+		}
+	}
+
+	return cmd, pargs, StateContinue
 }
 
 func (a *App) findFlagName(cmd *Command, flagName string) (*Flag, int) {
 	var matchedFlag *Flag
-	for i := range cmd.flags {
-		flag := cmd.flags[i]
-		if flagName == "--"+flag.name || (flag.alias != "" && flagName == "-"+flag.alias) {
-			matchedFlag = flag
-			break
+
+	if cmd != a.root {
+		for i := range cmd.flags {
+			flag := cmd.flags[i]
+			if flagName == "--"+flag.name || (flag.alias != "" && flagName == "-"+flag.alias) {
+				matchedFlag = flag
+				break
+			}
+		}
+	}
+
+	if matchedFlag == nil {
+		for i := range a.globalFlags {
+			flag := a.globalFlags[i]
+			if flagName == "--"+flag.name || (flag.alias != "" && flagName == "-"+flag.alias) {
+				matchedFlag = flag
+				break
+			}
 		}
 	}
 
@@ -100,7 +148,7 @@ func (a *App) findFlagName(cmd *Command, flagName string) (*Flag, int) {
 	return matchedFlag, StateContinue
 }
 
-func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingArgs []string, i int) (int, int) {
+func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, args []string, i int) (int, int) {
 	var flagName string
 	var flagValue string
 	hasEqualSign := strings.Contains(arg, "=")
@@ -125,8 +173,8 @@ func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingAr
 		}
 	default:
 		if flagValue == "" {
-			if i+1 < len(remainingArgs) && !hasEqualSign { // --flag value
-				flagValue = remainingArgs[i+1]
+			if i+1 < len(args) && !hasEqualSign { // --flag value
+				flagValue = args[i+1]
 				i++
 			} else {
 				return i, a.stop(ErrFlagValueMissing, cmd, map[string]any{
@@ -143,7 +191,7 @@ func (a *App) handleLongFlag(cmd *Command, flags *Flags, arg string, remainingAr
 	return i, StateContinue
 }
 
-func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingArgs []string, i int) (int, int) {
+func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, args []string, i int) (int, int) {
 	for j, f := range arg[1:] {
 		matchedFlag, code := a.findFlagName(cmd, "-"+string(f))
 		if code != StateContinue {
@@ -158,8 +206,8 @@ func (a *App) handleShortFlag(cmd *Command, flags *Flags, arg string, remainingA
 		default:
 			if j < len(arg[1:])-1 { // -fvalue
 				flagValue = arg[j+2:]
-			} else if i+1 < len(remainingArgs) { // -f value
-				flagValue = remainingArgs[i+1]
+			} else if i+1 < len(args) { // -f value
+				flagValue = args[i+1]
 				i++
 			} else {
 				return i, a.stop(ErrFlagValueMissing, cmd, map[string]any{
@@ -231,50 +279,21 @@ func (a *App) validateArgCount(cmd *Command, nargs int) int {
 	return StateContinue
 }
 
-func (a *App) handleGlobalArgs(args []string) int {
-	if len(args) < 2 {
-		return a.stop(ErrNoCommand, nil, nil)
-	}
-
-	switch args[1] {
+func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
+	switch arg {
 	case "--help", "-h":
-		return a.stop(ErrHelp, nil, nil)
-
+		if cmd == a.root {
+			return a.stop(ErrHelp, nil, nil)
+		} else {
+			return a.stop(ErrCommandHelp, cmd, nil)
+		}
 	case "--version", "-v":
-		if a.version != "" {
+		if cmd == a.root && a.version != "" {
 			return a.stop(ErrVersion, nil, nil)
 		}
 	}
 
 	return StateContinue
-}
-
-func (a *App) findRootCommand(input string) (*Command, int) {
-	for i := range a.commands {
-		if a.commands[i].name == input || a.commands[i].alias == input {
-			return a.commands[i], StateContinue
-		}
-	}
-	return nil, a.stop(ErrUnknownCommand, nil, map[string]any{
-		"command": input,
-	})
-}
-
-func (a *App) findSubcommand(cmd *Command, args []string) (*Command, []string) {
-	if len(args) == 0 {
-		return cmd, args
-	}
-
-	next := args[0]
-
-	for i := range cmd.subcommands {
-		sc := cmd.subcommands[i]
-		if sc.name == next || sc.alias == next {
-			return a.findSubcommand(sc, args[1:])
-		}
-	}
-
-	return cmd, args
 }
 
 func (a *App) runCommand(
