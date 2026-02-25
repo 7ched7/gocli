@@ -10,8 +10,9 @@ func (a *App) parseCommand(args []string) (*Context, int) {
 	parsedFlags := []FlagInfo{}
 
 	ctx := &Context{
-		args:  []string{},
-		flags: map[string]FlagValue{},
+		command: cmd,
+		args:    []string{},
+		flags:   map[string]FlagValue{},
 	}
 
 	positionalOnly := false
