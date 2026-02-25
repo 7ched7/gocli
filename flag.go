@@ -4,12 +4,12 @@ package gocli
 // It includes flag name, alias, expected value type, default value,
 // and description for help menu.
 type Flag[T any] struct {
-	name          string
-	alias         string
-	value         FlagValue
-	defaultValue  FlagValue
-	description   string
-	allowedValues []any
+	name         string
+	alias        string
+	value        FlagValue
+	defaultValue FlagValue
+	description  string
+	validator    func(ctx *Context, value T) error
 }
 
 // FlagValue defines a value that can be set from a string
@@ -27,7 +27,7 @@ type FlagInfo interface {
 	Value() FlagValue
 	DefaultValue() FlagValue
 	Description() string
-	AllowedValues() []any
+	Validate(ctx *Context) error
 }
 
 func NewStringFlag(name string, defaultValue string) *Flag[string] {
@@ -146,9 +146,8 @@ func (f *Flag[T]) WithDescription(description string) *Flag[T] {
 	return f
 }
 
-// WithEnum sets the allowed values for the flag.
-func (f *Flag[T]) WithEnum(values ...any) *Flag[T] {
-	f.allowedValues = values
+func (f *Flag[T]) WithValidator(fn func(ctx *Context, value T) error) *Flag[T] {
+	f.validator = fn
 	return f
 }
 
@@ -167,5 +166,17 @@ func (f *Flag[T]) DefaultValue() FlagValue { return f.defaultValue }
 // Description returns the description of the flag.
 func (f *Flag[T]) Description() string { return f.description }
 
-// AllowedValues returns the allowed values of the flag.
-func (f *Flag[T]) AllowedValues() []any { return f.allowedValues }
+func (f *Flag[T]) Validate(ctx *Context) error {
+	if f.validator == nil {
+		return nil
+	}
+
+	switch val := f.value.(type) {
+	case T:
+		return f.validator(ctx, val)
+	case FlagValue:
+		return f.validator(ctx, val.Get().(T))
+	default:
+		panic("invalid type")
+	}
+}
