@@ -1,197 +1,129 @@
 package gocli
 
-import "strconv"
-
-// Flags represents a parsed set of flag values for a command.
-type Flags struct {
-	pair map[string]any
-}
-
-type flagType int
-
-const (
-	String flagType = iota
-	Int
-	Float
-	Bool
-	Enum
-	StringSlice
-	IntSlice
-	FloatSlice
-	BoolSlice
+import (
+	"fmt"
+	"strconv"
+	"strings"
 )
 
-var defaultValues = map[flagType]any{
-	String:      "",
-	Int:         0,
-	Float:       0.0,
-	Bool:        false,
-	Enum:        "",
-	StringSlice: []string{},
-	IntSlice:    []int{},
-	FloatSlice:  []float64{},
-	BoolSlice:   []bool{},
+// Context holds parsed positional arguments
+// and flags for a command execution.
+type Context struct {
+	command *Command
+	args    []string
+	flags   map[string]FlagValue
 }
 
-var flagTypeHandlerMap = map[flagType]func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int{
-	String: func(_ *App, _ *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		flags.pair[matchedFlag.name] = flagValue
-		return StateContinue
-	},
-
-	Int: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		i, code := a.parseInt(cmd, flagValue)
-		if code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = i
-		return StateContinue
-	},
-
-	Float: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		f, code := a.parseFloat(cmd, flagValue)
-		if code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = f
-		return StateContinue
-	},
-
-	Bool: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		b, code := a.parseBool(cmd, flagValue)
-		if code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = b
-		return StateContinue
-	},
-
-	Enum: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		if code := a.checkEnumValue(cmd, matchedFlag, flagValue); code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = flagValue
-		return StateContinue
-	},
-
-	StringSlice: func(_ *App, _ *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]string), flagValue)
-		return StateContinue
-	},
-
-	IntSlice: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		i, code := a.parseInt(cmd, flagValue)
-		if code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]int), i)
-		return StateContinue
-	},
-
-	FloatSlice: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		f, code := a.parseFloat(cmd, flagValue)
-		if code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]float64), f)
-		return StateContinue
-	},
-
-	BoolSlice: func(a *App, cmd *Command, matchedFlag *Flag, flags *Flags, flagValue string) int {
-		b, code := a.parseBool(cmd, flagValue)
-		if code != StateContinue {
-			return code
-		}
-		flags.pair[matchedFlag.name] = append(flags.pair[matchedFlag.name].([]bool), b)
-		return StateContinue
-	},
+type typeString struct {
+	value *string
 }
 
-func (a *App) parseInt(cmd *Command, flagValue string) (int, int) {
-	parsed, err := strconv.Atoi(flagValue)
+func (s *typeString) Set(value string) error {
+	*s.value = value
+	return nil
+}
+func (s *typeString) Get() any       { return *s.value }
+func (s *typeString) String() string { return *s.value }
+
+type typeInt struct {
+	value *int
+}
+
+func (i *typeInt) Set(value string) error {
+	v, err := strconv.Atoi(value)
 	if err != nil {
-		return 0, a.stop(ErrInvalidIntValue, cmd, map[string]string{
-			"value": flagValue,
-		})
+		return fmt.Errorf("int parse error: '%v'\n", value)
 	}
-	return parsed, StateContinue
+	*i.value = v
+	return nil
+}
+func (i *typeInt) Get() any       { return int(*i.value) }
+func (i *typeInt) String() string { return strconv.FormatInt(int64(*i.value), 10) }
+
+type typeFloat struct {
+	value *float64
 }
 
-func (a *App) parseFloat(cmd *Command, flagValue string) (float64, int) {
-	parsed, err := strconv.ParseFloat(flagValue, 64)
+func (f *typeFloat) Set(value string) error {
+	v, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return 0.0, a.stop(ErrInvalidFloatValue, cmd, map[string]string{
-			"value": flagValue,
-		})
+		return fmt.Errorf("float parse error: '%v'\n", value)
 	}
-	return parsed, StateContinue
+	*f.value = v
+	return nil
+}
+func (f *typeFloat) Get() any       { return float64(*f.value) }
+func (f *typeFloat) String() string { return fmt.Sprintf("%v", *f.value) }
+
+type typeBool struct {
+	value *bool
 }
 
-func (a *App) parseBool(cmd *Command, flagValue string) (bool, int) {
-	parsed, err := strconv.ParseBool(flagValue)
+func (b *typeBool) Set(value string) error {
+	v, err := strconv.ParseBool(value)
 	if err != nil {
-		return false, a.stop(ErrInvalidBoolValue, cmd, map[string]string{
-			"value": flagValue,
-		})
+		return fmt.Errorf("bool parse error: '%v'\n", value)
 	}
-	return parsed, StateContinue
+	*b.value = v
+	return nil
+}
+func (b *typeBool) Get() any       { return bool(*b.value) }
+func (b *typeBool) String() string { return fmt.Sprintf("%v", *b.value) }
+
+type typeStringSlice struct {
+	value *[]string
 }
 
-func (a *App) checkEnumValue(cmd *Command, matchedFlag *Flag, flagValue string) int {
-	for _, v := range matchedFlag.allowedValues {
-		if flagValue == v {
-			return StateContinue
-		}
+func (ss *typeStringSlice) Set(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		*ss.value = append(*ss.value, v)
 	}
-	return a.stop(ErrInvalidFlagValue, cmd, map[string]string{
-		"value": flagValue,
-	})
+	return nil
 }
+func (ss *typeStringSlice) Get() any {
+	slc := make([]string, 0)
+	for _, v := range *ss.value {
+		slc = append(slc, v)
+	}
+	return slc
+}
+
+func (ss *typeStringSlice) String() string { return strings.Join(*ss.value, ",") }
+
+func (c *Context) Command() *Command { return c.command }
+
+func (c *Context) Args() []string { return c.args }
+
+func (c *Context) Flags() map[string]FlagValue { return c.flags }
+
+func (c *Context) Flag(value string) any { return c.flags[value].Get() }
 
 // String returns the value of the flag as a string.
 // It panics if the flag is not a string or not present.
-func (f *Flags) String(flag string) string {
-	return f.pair[flag].(string)
+func (c *Context) String(flag string) string {
+	return c.flags[flag].Get().(string)
 }
 
 // Int returns the value of the flag as an int.
 // It panics if the flag is not an int or not present.
-func (f *Flags) Int(flag string) int {
-	return f.pair[flag].(int)
+func (c *Context) Int(flag string) int {
+	return c.flags[flag].Get().(int)
 }
 
 // Float returns the value of the flag as a float64.
 // It panics if the flag is not a float64 or not present.
-func (f *Flags) Float(flag string) float64 {
-	return f.pair[flag].(float64)
+func (c *Context) Float(flag string) float64 {
+	return c.flags[flag].Get().(float64)
 }
 
 // Bool returns the value of the flag as a bool.
 // It panics if the flag is not a bool or not present.
-func (f *Flags) Bool(flag string) bool {
-	return f.pair[flag].(bool)
+func (c *Context) Bool(flag string) bool {
+	return c.flags[flag].Get().(bool)
 }
 
 // StringSlice returns the value of the flag as a slice of strings.
 // It panics if the flag is not a slice of strings or not present.
-func (f *Flags) StringSlice(flag string) []string {
-	return f.pair[flag].([]string)
-}
-
-// IntSlice returns the value of the flag as a slice of ints.
-// It panics if the flag is not a slice of ints or not present.
-func (f *Flags) IntSlice(flag string) []int {
-	return f.pair[flag].([]int)
-}
-
-// FloatSlice returns the value of the flag as a slice of float64s.
-// It panics if the flag is not a slice of float64s or not present.
-func (f *Flags) FloatSlice(flag string) []float64 {
-	return f.pair[flag].([]float64)
-}
-
-// BoolSlice returns the value of the flag as a slice of bools.
-// It panics if the flag is not a slice of bools or not present.
-func (f *Flags) BoolSlice(flag string) []bool {
-	return f.pair[flag].([]bool)
+func (c *Context) StringSlice(flag string) []string {
+	return c.flags[flag].Get().([]string)
 }

@@ -67,16 +67,16 @@ func exampleApp() *App {
 	app.WithStdout(io.Discard)
 	app.WithStderr(io.Discard)
 
-	messageCmd := app.NewCommand("message").
+	messageCmd := NewCommand("message").
 		WithAlias("msg").
 		WithShort("Send a message").
 		WithLong("Send a message to someone").
 		WithMinArg(1).
 		WithMaxArg(1).
-		AddFlag(app.NewFlag("to").WithAlias("t").WithDefault("").WithDescription("Name to send a message to")).
-		Action(func(args []string, flags Flags) {
-			name := flags.String("to")
-			text := args[0]
+		AddFlag(NewStringFlag("to", "").WithAlias("t").WithDescription("Name to send a message to")).
+		Action(func(ctx *Context) {
+			name := ctx.String("to")
+			text := ctx.Args()[0]
 
 			if name != "" {
 				fmt.Fprintf(app.Stdout(), "Hey %s! %s\n", name, text)
@@ -85,17 +85,17 @@ func exampleApp() *App {
 			}
 		})
 
-	mathCmd := app.NewCommand("math").
+	mathCmd := NewCommand("math").
 		WithShort("Perform simple math operations").
 		WithLong("Perform addition and multiplication operations on numbers").
 		AddSubcommand(
-			app.NewCommand("add").
+			NewCommand("add").
 				WithShort("Adds two numbers").
 				WithMinArg(2).
 				WithMaxArg(2).
-				Action(func(args []string, flags Flags) {
-					a := args[0]
-					b := args[1]
+				Action(func(ctx *Context) {
+					a := ctx.Args()[0]
+					b := ctx.Args()[1]
 					fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
 				}))
 

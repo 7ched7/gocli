@@ -9,18 +9,18 @@ type Command struct {
 	short       string
 	long        string
 	subcommands []*Command
-	flags       []*Flag
+	flags       []FlagInfo
 	minArg      int
 	maxArg      int
-	action      func(args []string, flags Flags)
+	action      func(ctx *Context)
 	parent      *Command
 }
 
 // NewCommand creates a new command with the given name.
-func (a *App) NewCommand(name string) *Command {
+func NewCommand(name string) *Command {
 	return &Command{
 		name:        name,
-		flags:       []*Flag{},
+		flags:       []FlagInfo{},
 		subcommands: []*Command{},
 	}
 }
@@ -81,14 +81,14 @@ func (c *Command) AddSubcommand(subcommand *Command) *Command {
 
 // Action assigns the function to be executed when the command is run.
 // It receives positional arguments and the parsed flags.
-func (c *Command) Action(fn func(args []string, flags Flags)) *Command {
+func (c *Command) Action(fn func(ctx *Context)) *Command {
 	c.action = fn
 	return c
 }
 
 // Action assigns the function to be executed when no command is entered.
 // It receives positional arguments and the parsed flags.
-func (a *App) Action(fn func(args []string, flags Flags)) *App {
+func (a *App) Action(fn func(ctx *Context)) *App {
 	a.root.action = fn
 	return a
 }
@@ -109,7 +109,7 @@ func (c *Command) Long() string { return c.long }
 func (c *Command) Subcommands() []*Command { return c.subcommands }
 
 // Flags returns the list of registered flags of the command.
-func (c *Command) Flags() []*Flag { return c.flags }
+func (c *Command) Flags() []FlagInfo { return c.flags }
 
 // MinArg returns the minimum number of required positional arguments of the command.
 func (c *Command) MinArg() int { return c.minArg }

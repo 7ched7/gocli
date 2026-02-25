@@ -13,7 +13,7 @@ type App struct {
 	description      string
 	commands         []*Command
 	root             *Command
-	globalFlags      []*Flag
+	globalFlags      []FlagInfo
 	stdout           io.Writer
 	stderr           io.Writer
 	customMessageMap map[errorType]func(app *App, err CLIError) string
@@ -35,12 +35,12 @@ func (a *App) Run() int {
 // RunWithArgs starts the application with a custom set of arguments.
 // It is useful for testing or integrating the CLI with another program.
 func (a *App) RunWithArgs(args []string) int {
-	cmd, args, flags, code := a.parseCommand(args[1:])
+	ctx, code := a.parseCommand(args[1:])
 	if code != StateContinue {
 		return code
 	}
 
-	a.runCommand(cmd, args, *flags)
+	a.runCommand(ctx)
 	return ExitOK
 }
 
@@ -51,7 +51,7 @@ func NewApp(name string) *App {
 		name:             name,
 		commands:         []*Command{},
 		root:             &Command{},
-		globalFlags:      []*Flag{},
+		globalFlags:      []FlagInfo{},
 		stdout:           os.Stdout,
 		stderr:           os.Stderr,
 		customMessageMap: map[errorType]func(app *App, err CLIError) string{},
@@ -96,7 +96,7 @@ func (a *App) Description() string { return a.description }
 func (a *App) Commands() []*Command { return a.commands }
 
 // GlobalFlags returns all registered global flags.
-func (a *App) GlobalFlags() []*Flag { return a.globalFlags }
+func (a *App) GlobalFlags() []FlagInfo { return a.globalFlags }
 
 // Stdout returns the output writer used for standard output.
 // If nil, it falls back to os.Stdout.

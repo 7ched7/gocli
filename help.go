@@ -99,11 +99,11 @@ func (a *App) CommandHelp(cmd *Command) string {
 	if hasFlag {
 		fmt.Fprintln(&sb, "\nFlags:")
 		for _, f := range cmd.flags {
-			displayName := "--" + f.name
-			if f.alias != "" {
-				displayName += ", -" + f.alias
+			displayName := "--" + f.Name()
+			if f.Alias() != "" {
+				displayName += ", -" + f.Alias()
 			}
-			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.description)
+			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.Description())
 		}
 	}
 
