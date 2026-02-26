@@ -82,7 +82,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 		})
 	}
 
-	if code := a.validateArgCount(cmd, len(ctx.args)); code != StateContinue {
+	if code := a.validateArgCount(cmd, ctx.args); code != StateContinue {
 		return nil, nil, code
 	}
 
@@ -263,10 +263,12 @@ func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue stri
 	return StateContinue
 }
 
-func (a *App) validateArgCount(cmd *Command, nargs int) int {
+func (a *App) validateArgCount(cmd *Command, args []string) int {
+	nargs := len(args)
+
 	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
 		return a.stop(ErrUnexpectedArgument, cmd, map[string]string{
-			"number": fmt.Sprint(nargs),
+			"argument": args[0],
 		})
 	}
 	if cmd.minArg > 0 && nargs < cmd.minArg {

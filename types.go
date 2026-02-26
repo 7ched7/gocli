@@ -33,7 +33,7 @@ type typeInt struct {
 func (i *typeInt) Set(value string) error {
 	v, err := strconv.Atoi(value)
 	if err != nil {
-		return fmt.Errorf("int parse error: '%v'\n", value)
+		return fmt.Errorf("error: invalid value '%v': must be an integer.\n", value)
 	}
 	*i.value = v
 	return nil
@@ -48,7 +48,7 @@ type typeFloat struct {
 func (f *typeFloat) Set(value string) error {
 	v, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return fmt.Errorf("float parse error: '%v'\n", value)
+		return fmt.Errorf("error: invalid value '%v': must be a float.\n", value)
 	}
 	*f.value = v
 	return nil
@@ -63,7 +63,7 @@ type typeBool struct {
 func (b *typeBool) Set(value string) error {
 	v, err := strconv.ParseBool(value)
 	if err != nil {
-		return fmt.Errorf("bool parse error: '%v'\n", value)
+		return fmt.Errorf("error: invalid value '%v': must be a bool.\n", value)
 	}
 	*b.value = v
 	return nil

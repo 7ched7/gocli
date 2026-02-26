@@ -12,14 +12,10 @@ const (
 	ErrUnknownCommand
 	ErrSubcommandRequired
 	ErrInvalidFlag
-	ErrInvalidFlagValue
 	ErrFlagValueMissing
 	ErrUnexpectedArgument
 	ErrTooFewArguments
 	ErrTooManyArguments
-	ErrInvalidIntValue
-	ErrInvalidFloatValue
-	ErrInvalidBoolValue
 	ErrUnsupportedFlagType
 )
 
@@ -27,132 +23,129 @@ const (
 // It includes an exit code, message, error type, and optional command pointer,
 // as well as extra metadata.
 type CLIError struct {
-	Code    int               // Exit code
-	Message string            // Error message
-	Type    errorType         // Error type
-	Cmd     *Command          // Command pointer
-	Data    map[string]string // Extra information
+	code      int
+	message   string
+	errorType errorType
+	command   *Command
+	data      map[string]string
+}
+
+type ErrorContext struct {
+	app *App
+	err *CLIError
 }
 
 // Error implements the built-in error interface,
 // and returns a defined message for the error.
 func (e CLIError) Error() string {
-	return e.Message
+	return e.message
 }
 
-var defaultMessageMap = map[errorType]func(*App, *Command, map[string]string) (int, string){
-	ErrHelp: func(a *App, _ *Command, _ map[string]string) (int, string) {
-		return ExitOK, a.Help()
-	},
+func (e *CLIError) Code() int               { return e.code }
+func (e *CLIError) Message() string         { return e.message }
+func (e *CLIError) ErrorType() errorType    { return e.errorType }
+func (e *CLIError) Command() *Command       { return e.command }
+func (e *CLIError) Data() map[string]string { return e.data }
 
-	ErrCommandHelp: func(a *App, cmd *Command, _ map[string]string) (int, string) {
-		return ExitOK, a.CommandHelp(cmd)
-	},
+func (e *ErrorContext) App() *App      { return e.app }
+func (e *ErrorContext) Err() *CLIError { return e.err }
 
-	ErrVersion: func(a *App, _ *Command, _ map[string]string) (int, string) {
-		return ExitOK, fmt.Sprintf("%s version %s\n", a.name, a.version)
-	},
-
-	ErrNoCommand: func(a *App, _ *Command, _ map[string]string) (int, string) {
-		return ExitUsage, a.Help()
-	},
-
-	ErrUnknownCommand: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("unknown command: '%s'\n", data["command"])
-	},
-
-	ErrSubcommandRequired: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("'%s' requires a subcommand\n", data["command"])
-	},
-
-	ErrInvalidFlag: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("invalid flag: '%s'\n", data["flag"])
-	},
-
-	ErrInvalidFlagValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("invalid flag value: '%s'\n", data["value"])
-	},
-
-	ErrFlagValueMissing: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("value required for flag: '%s'\n", data["flag"])
-	},
-
-	ErrUnexpectedArgument: func(_ *App, cmd *Command, _ map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("'%s' does not accept argument(s)\n", cmd.name)
-	},
-
-	ErrTooFewArguments: func(_ *App, cmd *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("'%s' requires at least %d argument(s), got %s\n", cmd.name, cmd.minArg, data["number"])
-	},
-
-	ErrTooManyArguments: func(_ *App, cmd *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("'%s' requires at most %d argument(s), got %s\n", cmd.name, cmd.maxArg, data["number"])
-	},
-
-	ErrInvalidIntValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("int parse error: '%s'\n", data["value"])
-	},
-
-	ErrInvalidFloatValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("float parse error: '%s'\n", data["value"])
-	},
-
-	ErrInvalidBoolValue: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("bool parse error: '%s'\n", data["value"])
-	},
-
-	ErrUnsupportedFlagType: func(_ *App, _ *Command, data map[string]string) (int, string) {
-		return ExitUsage, fmt.Sprintf("unsupported type: '%s'\n", data["value"])
-	},
-}
-
-func (a *App) getMessageAndExitCode(errType errorType, cmd *Command, data map[string]string) (int, string) {
-	if fn, ok := defaultMessageMap[errType]; ok {
-		return fn(a, cmd, data)
-	}
-	return ExitError, "unknown error"
-}
-
-func (a *App) stop(errType errorType, cmd *Command, data map[string]string) int {
-	code, message := a.getMessageAndExitCode(errType, cmd, data)
-
-	// create the appropriate CLI error
-	cliErr := CLIError{
-		Code:    code,
-		Type:    errType,
-		Cmd:     cmd,
-		Message: message,
-		Data:    data,
+func (a *App) getMessageAndExitCode(errType errorType, cmd *Command, data map[string]string) (string, int) {
+	name := func() string {
+		if cmd == nil || cmd == a.root {
+			return a.name
+		}
+		return cmd.name
 	}
 
-	return a.handleError(cliErr)
+	switch errType {
+	case ErrHelp:
+		return a.Help(), ExitOK
+
+	case ErrCommandHelp:
+		return a.CommandHelp(cmd), ExitOK
+
+	case ErrVersion:
+		return fmt.Sprintf("%s version %s\n", a.name, a.version), ExitOK
+
+	case ErrNoCommand:
+		return a.Help(), ExitUsage
+
+	case ErrUnknownCommand:
+		return fmt.Sprintf("error: unknown command: '%s'\nuse --help for usage information.\n", data["command"]), ExitUsage
+
+	case ErrSubcommandRequired:
+		return fmt.Sprintf("error: a subcommand is required for the command: '%s'\nuse --help for usage information.\n", data["command"]), ExitUsage
+
+	case ErrInvalidFlag:
+		return fmt.Sprintf("error: invalid flag: '%s'\nuse --help for usage information.\n", data["flag"]), ExitUsage
+
+	case ErrFlagValueMissing:
+		return fmt.Sprintf("error: a value is required for the flag: '%s'\n", data["flag"]), ExitUsage
+
+	case ErrUnexpectedArgument:
+		return fmt.Sprintf("error: unexpected argument: '%s'\n'%s' does not accept arguments.\n", data["argument"], name()), ExitUsage
+
+	case ErrTooFewArguments:
+		return fmt.Sprintf("error: '%s' requires at least %d argument(s), but got %s.\n", name(), cmd.minArg, data["number"]), ExitUsage
+
+	case ErrTooManyArguments:
+		return fmt.Sprintf("error: '%s' accepts at most %d argument(s), but got %s.\n", name(), cmd.maxArg, data["number"]), ExitUsage
+
+	case ErrUnsupportedFlagType:
+		return fmt.Sprintf("internal error: unsupported flag type: '%s'\n", data["value"]), ExitUsage
+
+	default:
+		return "internal error: an unexpected error occurred.\n", ExitError
+	}
 }
 
-func (a *App) handleError(err CLIError) int {
+func (a *App) stop(errorType errorType, cmd *Command, data map[string]string) int {
+	msg, code := a.getMessageAndExitCode(errorType, cmd, data)
+
+	cliErr := &CLIError{
+		code:      code,
+		errorType: errorType,
+		command:   cmd,
+		message:   msg,
+		data:      data,
+	}
+
+	errCtx := ErrorContext{
+		app: a,
+		err: cliErr,
+	}
+
+	return a.handleError(errCtx)
+}
+
+func (a *App) handleError(errCtx ErrorContext) int {
 	var msg string
+	isCustom := false
 	out := a.Stderr()
 
 	if a.customMessageMap != nil {
-		if fn, ok := a.customMessageMap[err.Type]; ok {
-			msg = fn(a, err) // override the default message
+		if fn, ok := a.customMessageMap[errCtx.err.errorType]; ok {
+			msg = fn(errCtx) // override the default message
+			isCustom = true
 		}
 	}
 
-	if msg == "" {
-		msg = err.Message
+	if !isCustom {
+		msg = errCtx.err.message
 	}
 
-	if err.Code == ExitOK {
+	if errCtx.err.code == ExitOK {
 		out = a.Stdout()
 	}
 
 	fmt.Fprint(out, msg)
-	return err.Code
+	return errCtx.err.code
 }
 
 // HandleMessage registers a custom message handler for a specific error type.
 // The handler function runs whenever an error of the given type occurs.
-func (a *App) HandleMessage(errType errorType, fn func(app *App, err CLIError) string) *App {
+func (a *App) HandleMessage(errType errorType, fn func(errCtx ErrorContext) string) *App {
 	a.customMessageMap[errType] = fn
 	return a
 }
