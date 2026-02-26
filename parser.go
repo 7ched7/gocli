@@ -5,11 +5,12 @@ import (
 	"strings"
 )
 
-func (a *App) parseCommand(args []string) (*Context, int) {
+func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 	cmd := a.root
 	parsedFlags := []FlagInfo{}
 
 	ctx := &Context{
+		app:     a,
 		command: cmd,
 		args:    []string{},
 		flags:   map[string]FlagValue{},
@@ -44,7 +45,7 @@ func (a *App) parseCommand(args []string) (*Context, int) {
 		if !strings.HasPrefix(arg, "-") {
 			cmd, code = a.handleArgument(ctx, cmd, arg)
 			if code != StateContinue {
-				return nil, code
+				return nil, nil, code
 			}
 
 			ctx.command = cmd
@@ -53,7 +54,7 @@ func (a *App) parseCommand(args []string) (*Context, int) {
 
 		code = a.handleHelpAndVersion(arg, cmd)
 		if code != StateContinue {
-			return nil, code
+			return nil, nil, code
 		}
 
 		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
@@ -63,7 +64,7 @@ func (a *App) parseCommand(args []string) (*Context, int) {
 		}
 
 		if code != StateContinue {
-			return nil, code
+			return nil, nil, code
 		}
 
 		parsedFlags = append(parsedFlags, matchedFlag)
@@ -72,24 +73,24 @@ func (a *App) parseCommand(args []string) (*Context, int) {
 	}
 
 	if cmd == a.root && a.root.action == nil && len(ctx.args) == 0 {
-		return nil, a.stop(ErrNoCommand, nil, nil)
+		return nil, nil, a.stop(ErrNoCommand, nil, nil)
 	}
 
 	if len(cmd.subcommands) > 0 && cmd.minArg == 0 && cmd.maxArg == 0 {
-		return nil, a.stop(ErrSubcommandRequired, cmd, map[string]string{
+		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]string{
 			"command": cmd.name,
 		})
 	}
 
 	if code := a.validateArgCount(cmd, len(ctx.args)); code != StateContinue {
-		return nil, code
+		return nil, nil, code
 	}
 
 	if code := a.validateFlags(ctx, parsedFlags); code != StateContinue {
-		return nil, code
+		return nil, nil, code
 	}
 
-	return ctx, StateContinue
+	return ctx, cmd, StateContinue
 }
 
 func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, int) {
@@ -310,8 +311,8 @@ func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
 	return StateContinue
 }
 
-func (a *App) runCommand(ctx *Context) {
-	if ctx.command.action != nil {
-		ctx.command.action(ctx)
+func (a *App) runCommand(ctx *Context, cmd *Command) {
+	if cmd.action != nil {
+		cmd.action(ctx)
 	}
 }

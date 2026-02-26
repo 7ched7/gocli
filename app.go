@@ -35,12 +35,12 @@ func (a *App) Run() int {
 // RunWithArgs starts the application with a custom set of arguments.
 // It is useful for testing or integrating the CLI with another program.
 func (a *App) RunWithArgs(args []string) int {
-	ctx, code := a.parseCommand(args[1:])
+	ctx, cmd, code := a.parseCommand(args[1:])
 	if code != StateContinue {
 		return code
 	}
 
-	a.runCommand(ctx)
+	a.runCommand(ctx, cmd)
 	return ExitOK
 }
 

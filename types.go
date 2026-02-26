@@ -9,6 +9,7 @@ import (
 // Context holds parsed positional arguments
 // and flags for a command execution.
 type Context struct {
+	app     *App
 	command *Command
 	args    []string
 	flags   map[string]FlagValue
@@ -89,6 +90,8 @@ func (ss *typeStringSlice) Get() any {
 }
 
 func (ss *typeStringSlice) String() string { return strings.Join(*ss.value, ",") }
+
+func (c *Context) App() *App { return c.app }
 
 func (c *Context) Command() *Command { return c.command }
 
