@@ -10,30 +10,50 @@ import (
 // and is displayed when the user types --help or -h or when no command is provided.
 func (a *App) Help() string {
 	var sb strings.Builder
+	maxLen := getMaxLength(a.commands, a.globalFlags, true)
 
-	fmt.Fprintln(&sb, "Usage:")
-	fmt.Fprintf(&sb, "  %s [COMMAND] [FLAGS] [ARGS...]\n", a.name)
-	fmt.Fprintln(&sb)
-	fmt.Fprintln(&sb, "Commands:")
+	// Usage
+	fmt.Fprintf(&sb, "Usage:\n  "+a.name)
 
-	for _, cmd := range a.commands {
-		entry := cmd.name
-
-		if cmd.alias != "" {
-			entry += ", " + cmd.alias
-		}
-
-		fmt.Fprintf(&sb, "  %-18s %s\n", entry, cmd.short)
+	if len(a.globalFlags) > 0 {
+		fmt.Fprintf(&sb, " [global flags]")
 	}
-
-	fmt.Fprintln(&sb, "\nFlags:")
-	fmt.Fprintf(&sb, "  %-18s %s\n", "--help, -h", "Show help")
-	if a.version != "" {
-		fmt.Fprintf(&sb, "  %-18s %s\n", "--version, -v", "Show version")
-	}
-
 	if len(a.commands) > 0 {
-		fmt.Fprintf(&sb, "\nFor more information about a command, use '%s <command> --help'.\n", a.name)
+		fmt.Fprintf(&sb, " [command]")
+	}
+	fmt.Fprintf(&sb, "\n")
+
+	// Description
+	if a.description != "" {
+		appDescPart := wrapText(a.description, 0)
+		fmt.Fprintf(&sb, "\n%s\n", appDescPart)
+	}
+
+	// Commands
+	if len(a.commands) > 0 {
+		fmt.Fprintf(&sb, "\nCommands:\n")
+		sb.WriteString(writeCommands(a.commands, maxLen))
+	}
+
+	// Global flags
+	fmt.Fprintf(&sb, "\nGlobal flags:\n")
+	if len(a.globalFlags) > 0 {
+		sb.WriteString(writeFlags(a.globalFlags, maxLen))
+		fmt.Fprintf(&sb, "\n")
+	}
+
+	// Help and version flags
+	hPart := fmt.Sprintf("  %s --%s", "-h,", "help")
+	fmt.Fprintf(&sb, "%-*s  %s\n", maxLen, hPart, "Show help")
+
+	if a.version != "" {
+		vPart := fmt.Sprintf("  %s --%s", "-v,", "version")
+		fmt.Fprintf(&sb, "%-*s  %s\n", maxLen, vPart, "Show version")
+	}
+
+	// Footer
+	if len(a.commands) > 0 {
+		fmt.Fprintf(&sb, "\nUse \"%s [command] --help\" for more information about a command.\n", a.name)
 	}
 
 	return sb.String()
@@ -41,71 +61,155 @@ func (a *App) Help() string {
 
 // CommandHelp generates and returns a help menu for a specific command.
 // It includes the full command path, argument expectations, registered subcommands/flags,
-// and is displayed when the user types <cmd> --help or <cmd> -h.
+// and is displayed when the user types "[command] --help" or "[command] -h".
 func (a *App) CommandHelp(cmd *Command) string {
 	var sb strings.Builder
+	maxLen := getMaxLength(cmd.subcommands, cmd.flags, false)
 
-	fmt.Fprintln(&sb, "Usage:")
-	fmt.Fprintf(&sb, "  %s", a.name)
+	// Usage
+	fmt.Fprintf(&sb, "Usage:\n  "+a.name)
+	fmt.Fprintf(&sb, "%s", cmd.fullPath())
 
-	// Build full command path
-	var parents []string
-	currCmd := cmd
-	for currCmd.Parent() != nil {
-		currCmd = currCmd.Parent()
-		parents = append(parents, currCmd.name)
+	if len(cmd.subcommands) > 0 {
+		fmt.Fprint(&sb, " [command]")
 	}
-
-	for i := len(parents) - 1; i >= 0; i-- {
-		fmt.Fprintf(&sb, " %s", parents[i])
-	}
-
-	fmt.Fprintf(&sb, " %s", cmd.name)
-
-	hasSubcmd := len(cmd.subcommands) > 0
-	hasFlag := len(cmd.flags) > 0
-
-	if hasSubcmd {
-		fmt.Fprint(&sb, " [COMMAND]")
-	}
-	if hasFlag {
-		fmt.Fprint(&sb, " [FLAGS]")
+	if len(cmd.flags) > 0 {
+		fmt.Fprint(&sb, " [flags]")
 	}
 
 	if cmd.maxArg == 1 {
-		fmt.Fprint(&sb, " [ARG]")
+		fmt.Fprint(&sb, " [arg]")
 	} else if cmd.maxArg > 1 {
-		fmt.Fprintf(&sb, " [ARG1...ARG%d]", cmd.maxArg)
+		fmt.Fprintf(&sb, " [arg1...arg%d]", cmd.maxArg)
 	} else if cmd.minArg > 0 {
-		fmt.Fprint(&sb, " [ARGS...]")
+		fmt.Fprint(&sb, " [args...]")
 	}
+	fmt.Fprintf(&sb, "\n")
 
-	fmt.Fprintln(&sb)
+	// Description
 	if cmd.long != "" {
-		fmt.Fprintf(&sb, "\n%s\n", cmd.long)
+		longPart := wrapText(cmd.long, 0)
+		fmt.Fprintf(&sb, "\n%s\n", longPart)
 	}
 
-	if hasSubcmd {
-		fmt.Fprintln(&sb, "\nCommands:")
-		for _, f := range cmd.subcommands {
-			displayName := f.name
-			if f.alias != "" {
-				displayName += ", " + f.alias
-			}
-			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.short)
-		}
+	// Commands
+	if len(cmd.subcommands) > 0 {
+		fmt.Fprintf(&sb, "\nCommands:\n")
+		sb.WriteString(writeCommands(cmd.subcommands, maxLen))
 	}
 
-	if hasFlag {
-		fmt.Fprintln(&sb, "\nFlags:")
-		for _, f := range cmd.flags {
-			displayName := "--" + f.Name()
-			if f.Alias() != "" {
-				displayName += ", -" + f.Alias()
-			}
-			fmt.Fprintf(&sb, "  %-18s %s\n", displayName, f.Description())
-		}
+	// Flags
+	if len(cmd.flags) > 0 {
+		fmt.Fprintf(&sb, "\nFlags:\n")
+		sb.WriteString(writeFlags(cmd.flags, maxLen))
 	}
 
 	return sb.String()
+}
+
+func writeCommands(cmds []*Command, keyWidth int) string {
+	var sb strings.Builder
+	for _, cmd := range cmds {
+		namePart := "  " + cmd.name
+		if cmd.alias != "" {
+			namePart += ", " + cmd.alias
+		}
+		descPart := wrapText(cmd.short, keyWidth+2)
+		fmt.Fprintf(&sb, "%-*s  %s\n", keyWidth, namePart, descPart)
+	}
+	return sb.String()
+}
+
+func writeFlags(flags []FlagInfo, keyWidth int) string {
+	var sb strings.Builder
+	for _, f := range flags {
+		aliasPart := "   "
+		if f.Alias() != "" {
+			aliasPart = "-" + f.Alias() + ","
+		}
+
+		defaultPart := ""
+		if f.DefaultValue().String() != zeroValues[f.HelpType()] {
+			defaultPart = fmt.Sprintf("(default: %s)", f.DefaultValue().String())
+		}
+
+		helpType := f.HelpType()
+		if helpType == "bool" {
+			helpType = ""
+		}
+
+		flagPart := fmt.Sprintf("  %s --%s %s", aliasPart, f.Name(), helpType)
+		descPart := wrapText(f.Description()+" "+defaultPart, keyWidth+2)
+
+		fmt.Fprintf(&sb, "%-*s  %s\n", keyWidth, flagPart, descPart)
+	}
+	return sb.String()
+}
+
+func getMaxLength(cmds []*Command, flags []FlagInfo, isRoot bool) int {
+	maxLen := 0
+	padding := 2
+	maxWidth := 25
+	aliasLen := 3 // -x,
+
+	if isRoot {
+		maxLen = 15
+	}
+
+	for _, cmd := range cmds {
+		l := len(cmd.name) + len(cmd.alias)
+		if l > maxLen {
+			maxLen = l
+		}
+	}
+
+	for _, f := range flags {
+		l := 2 + aliasLen + 1 + len(f.Name()) + 1 + len(f.HelpType())
+		if l > maxLen {
+			maxLen = l
+		}
+	}
+
+	if maxLen > maxWidth {
+		maxLen = maxWidth
+	}
+
+	return maxLen + padding
+}
+
+func wrapText(text string, keyWidth int) string {
+	tWidth := 80
+
+	words := strings.Fields(strings.TrimSpace(text))
+	if len(words) == 0 {
+		return ""
+	}
+
+	var result strings.Builder
+	var currLine strings.Builder
+	indent := strings.Repeat(" ", keyWidth)
+
+	for _, word := range words {
+		// Start a new line if it exceeds width
+		if currLine.Len()+len(word)+1 > tWidth-keyWidth {
+			result.WriteString(currLine.String() + "\n" + indent)
+			currLine.Reset()
+		}
+
+		if currLine.Len() > 0 {
+			currLine.WriteString(" ")
+		}
+
+		currLine.WriteString(word)
+	}
+
+	result.WriteString(currLine.String())
+	return result.String()
+}
+
+func (c *Command) fullPath() string {
+	if c.parent == nil {
+		return c.name
+	}
+	return c.parent.fullPath() + " " + c.name
 }
