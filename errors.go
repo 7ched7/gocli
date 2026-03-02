@@ -30,24 +30,38 @@ type CLIError struct {
 	data      map[string]string
 }
 
+// Error implements the built-in error interface
+// and returns the error message.
+func (e CLIError) Error() string {
+	return e.message
+}
+
+// Code returns the exit code associated with the error.
+func (e *CLIError) Code() int { return e.code }
+
+// Message returns the message of the error.
+func (e *CLIError) Message() string { return e.message }
+
+// ErrorType returns the categorized type of the error.
+func (e *CLIError) ErrorType() errorType { return e.errorType }
+
+// Command returns the command where the error occured.
+func (e *CLIError) Command() *Command { return e.command }
+
+// Data returns a map of metadata related to the error.
+func (e *CLIError) Data() map[string]string { return e.data }
+
+// ErrorContext holds the application instance
+// and error object providing details about the error.
 type ErrorContext struct {
 	app *App
 	err *CLIError
 }
 
-// Error implements the built-in error interface,
-// and returns a defined message for the error.
-func (e CLIError) Error() string {
-	return e.message
-}
+// App returns the application instance.
+func (e *ErrorContext) App() *App { return e.app }
 
-func (e *CLIError) Code() int               { return e.code }
-func (e *CLIError) Message() string         { return e.message }
-func (e *CLIError) ErrorType() errorType    { return e.errorType }
-func (e *CLIError) Command() *Command       { return e.command }
-func (e *CLIError) Data() map[string]string { return e.data }
-
-func (e *ErrorContext) App() *App      { return e.app }
+// Err returns the CLIError providing details about the error.
 func (e *ErrorContext) Err() *CLIError { return e.err }
 
 func (a *App) getMessageAndExitCode(errType errorType, cmd *Command, data map[string]string) (string, int) {

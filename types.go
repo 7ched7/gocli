@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Context holds parsed positional arguments
-// and flags for a command execution.
+// Context holds positional arguments
+// and parsed flags for a command execution.
 type Context struct {
 	app     *App
 	command *Command
@@ -23,22 +23,24 @@ var zeroValues = map[string]string{
 	"strings": "",
 }
 
-type typeString struct {
+// TypeString implements FlagValue for string flags.
+type TypeString struct {
 	value *string
 }
 
-func (s *typeString) Set(value string) error {
+func (s *TypeString) Set(value string) error {
 	*s.value = value
 	return nil
 }
-func (s *typeString) Get() any       { return *s.value }
-func (s *typeString) String() string { return *s.value }
+func (s *TypeString) Get() any       { return *s.value }
+func (s *TypeString) String() string { return *s.value }
 
-type typeInt struct {
+// TypeInt implements FlagValue for integer flags.
+type TypeInt struct {
 	value *int
 }
 
-func (i *typeInt) Set(value string) error {
+func (i *TypeInt) Set(value string) error {
 	v, err := strconv.Atoi(value)
 	if err != nil {
 		return fmt.Errorf("error: invalid value '%v': must be an integer.\n", value)
@@ -46,14 +48,15 @@ func (i *typeInt) Set(value string) error {
 	*i.value = v
 	return nil
 }
-func (i *typeInt) Get() any       { return int(*i.value) }
-func (i *typeInt) String() string { return strconv.FormatInt(int64(*i.value), 10) }
+func (i *TypeInt) Get() any       { return int(*i.value) }
+func (i *TypeInt) String() string { return strconv.FormatInt(int64(*i.value), 10) }
 
-type typeFloat struct {
+// TypeFloat implements FlagValue for float64 flags.
+type TypeFloat struct {
 	value *float64
 }
 
-func (f *typeFloat) Set(value string) error {
+func (f *TypeFloat) Set(value string) error {
 	v, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return fmt.Errorf("error: invalid value '%v': must be a float.\n", value)
@@ -61,14 +64,15 @@ func (f *typeFloat) Set(value string) error {
 	*f.value = v
 	return nil
 }
-func (f *typeFloat) Get() any       { return float64(*f.value) }
-func (f *typeFloat) String() string { return fmt.Sprintf("%v", *f.value) }
+func (f *TypeFloat) Get() any       { return float64(*f.value) }
+func (f *TypeFloat) String() string { return fmt.Sprintf("%v", *f.value) }
 
-type typeBool struct {
+// TypeBool implements FlagValue for boolean flags.
+type TypeBool struct {
 	value *bool
 }
 
-func (b *typeBool) Set(value string) error {
+func (b *TypeBool) Set(value string) error {
 	v, err := strconv.ParseBool(value)
 	if err != nil {
 		return fmt.Errorf("error: invalid value '%v': must be a bool.\n", value)
@@ -76,20 +80,21 @@ func (b *typeBool) Set(value string) error {
 	*b.value = v
 	return nil
 }
-func (b *typeBool) Get() any       { return bool(*b.value) }
-func (b *typeBool) String() string { return fmt.Sprintf("%v", *b.value) }
+func (b *TypeBool) Get() any       { return bool(*b.value) }
+func (b *TypeBool) String() string { return fmt.Sprintf("%v", *b.value) }
 
-type typeStringSlice struct {
+// TypeStringSlice implements FlagValue for string slice flags.
+type TypeStringSlice struct {
 	value *[]string
 }
 
-func (ss *typeStringSlice) Set(value string) error {
+func (ss *TypeStringSlice) Set(value string) error {
 	for _, v := range strings.Split(value, ",") {
 		*ss.value = append(*ss.value, v)
 	}
 	return nil
 }
-func (ss *typeStringSlice) Get() any {
+func (ss *TypeStringSlice) Get() any {
 	slc := make([]string, 0)
 	for _, v := range *ss.value {
 		slc = append(slc, v)
@@ -97,16 +102,21 @@ func (ss *typeStringSlice) Get() any {
 	return slc
 }
 
-func (ss *typeStringSlice) String() string { return strings.Join(*ss.value, ",") }
+func (ss *TypeStringSlice) String() string { return strings.Join(*ss.value, ",") }
 
+// App returns the application instance.
 func (c *Context) App() *App { return c.app }
 
+// Command returns the executed command.
 func (c *Context) Command() *Command { return c.command }
 
+// Args returns the positional arguments passed to the command.
 func (c *Context) Args() []string { return c.args }
 
+// Flags returns all parsed flags as a key-value pairs.
 func (c *Context) Flags() map[string]FlagValue { return c.flags }
 
+// Flag returns the value of a flag by name.
 func (c *Context) Flag(value string) any { return c.flags[value].Get() }
 
 // String returns the value of the flag as a string.

@@ -6,7 +6,7 @@ import (
 )
 
 // App represents the main CLI application.
-// It manages application commands, configurations, and I/O streams.
+// It manages application commands, global flags, configurations, and I/O streams.
 type App struct {
 	name             string
 	version          string
@@ -66,6 +66,7 @@ func (a *App) WithVersion(version string) *App {
 }
 
 // WithDescription sets the description for the application.
+// The description is typically shown in help menu.
 func (a *App) WithDescription(description string) *App {
 	a.description = description
 	return a
@@ -83,7 +84,7 @@ func (a *App) WithStderr(err io.Writer) *App {
 	return a
 }
 
-// Name returns the name of the application.
+// Name returns the display name of the application.
 func (a *App) Name() string { return a.name }
 
 // Version returns the version of the application.
