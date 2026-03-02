@@ -9,7 +9,7 @@ type Flag[T any] struct {
 	value        FlagValue
 	defaultValue FlagValue
 	description  string
-	helpType     string
+	metavar      string
 	validator    func(ctx *Context, value T) error
 }
 
@@ -27,7 +27,7 @@ type FlagInfo interface {
 	Value() FlagValue            // Value returns the parsed value of the flag.
 	DefaultValue() FlagValue     // DefaultValue returns the default value of the flag.
 	Description() string         // Description returns the description of the flag.
-	HelpType() string            // HelpType returns the help type of the flag.
+	Metavar() string             // Metavar returns the metavariable of the flag.
 	Validate(ctx *Context) error // Validate runs the flag validator function, if set.
 }
 
@@ -38,7 +38,7 @@ func NewStringFlag(name string, defaultValue string) *Flag[string] {
 		name:         name,
 		value:        &TypeString{value: &value},
 		defaultValue: &TypeString{value: &defaultValue},
-		helpType:     "string",
+		metavar:      "STRING",
 	}
 }
 
@@ -48,7 +48,7 @@ func NewStringFlagVar(name string, value *string, defaultValue string) *Flag[str
 		name:         name,
 		value:        &TypeString{value: value},
 		defaultValue: &TypeString{value: &defaultValue},
-		helpType:     "string",
+		metavar:      "STRING",
 	}
 }
 
@@ -59,7 +59,7 @@ func NewIntFlag(name string, defaultValue int) *Flag[int] {
 		name:         name,
 		value:        &TypeInt{value: &value},
 		defaultValue: &TypeInt{value: &defaultValue},
-		helpType:     "int",
+		metavar:      "INT",
 	}
 }
 
@@ -69,7 +69,7 @@ func NewIntFlagVar(name string, value *int, defaultValue int) *Flag[int] {
 		name:         name,
 		value:        &TypeInt{value: value},
 		defaultValue: &TypeInt{value: &defaultValue},
-		helpType:     "int",
+		metavar:      "INT",
 	}
 }
 
@@ -79,7 +79,7 @@ func NewFloatFlag(name string, defaultValue float64) *Flag[float64] {
 	return &Flag[float64]{
 		name: name, value: &TypeFloat{value: &value},
 		defaultValue: &TypeFloat{value: &defaultValue},
-		helpType:     "float64",
+		metavar:      "FLOAT",
 	}
 }
 
@@ -89,7 +89,7 @@ func NewFloatFlagVar(name string, value *float64, defaultValue float64) *Flag[fl
 		name:         name,
 		value:        &TypeFloat{value: value},
 		defaultValue: &TypeFloat{value: &defaultValue},
-		helpType:     "float64",
+		metavar:      "FLOAT",
 	}
 }
 
@@ -100,7 +100,7 @@ func NewBoolFlag(name string, defaultValue bool) *Flag[bool] {
 		name:         name,
 		value:        &TypeBool{value: &value},
 		defaultValue: &TypeBool{value: &defaultValue},
-		helpType:     "bool",
+		metavar:      "BOOL",
 	}
 }
 
@@ -110,7 +110,7 @@ func NewBoolFlagVar(name string, value *bool, defaultValue bool) *Flag[bool] {
 		name:         name,
 		value:        &TypeBool{value: value},
 		defaultValue: &TypeBool{value: &defaultValue},
-		helpType:     "bool",
+		metavar:      "BOOL",
 	}
 }
 
@@ -121,7 +121,7 @@ func NewStringSliceFlag(name string, defaultValue []string) *Flag[[]string] {
 		name:         name,
 		value:        &TypeStringSlice{value: &value},
 		defaultValue: &TypeStringSlice{value: &defaultValue},
-		helpType:     "strings",
+		metavar:      "STRINGS",
 	}
 }
 
@@ -131,7 +131,7 @@ func NewStringSliceFlagVar(name string, value *[]string, defaultValue []string) 
 		name:         name,
 		value:        &TypeStringSlice{value: value},
 		defaultValue: &TypeStringSlice{value: &defaultValue},
-		helpType:     "strings",
+		metavar:      "STRINGS",
 	}
 }
 
@@ -169,9 +169,9 @@ func (f *Flag[T]) WithDescription(description string) *Flag[T] {
 	return f
 }
 
-// WithHelpType sets the help type shown in flags within help menu.
-func (f *Flag[T]) WithHelpType(helpType string) *Flag[T] {
-	f.helpType = helpType
+// WithMetavar sets the metavariable for the flag.
+func (f *Flag[T]) WithMetavar(metavar string) *Flag[T] {
+	f.metavar = metavar
 	return f
 }
 
@@ -198,8 +198,8 @@ func (f *Flag[T]) DefaultValue() FlagValue { return f.defaultValue }
 // If not set, it returns an empty string.
 func (f *Flag[T]) Description() string { return f.description }
 
-// HelpType returns the help type of the flag.
-func (f *Flag[T]) HelpType() string { return f.helpType }
+// Metavar returns the metavariable of the flag.
+func (f *Flag[T]) Metavar() string { return f.metavar }
 
 // Validate runs the flag validator function, if set.
 func (f *Flag[T]) Validate(ctx *Context) error {
