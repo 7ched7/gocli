@@ -19,8 +19,8 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 	positionalOnly := false
 
 	// Global flag values mapping
-	for _, flag := range a.globalFlags {
-		ctx.flags[flag.Name()] = flag.Value()
+	for _, f := range a.globalFlags {
+		ctx.flags[f.Name()] = f.Value()
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -98,17 +98,17 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 
 	if len(ctx.args) == 0 {
 		if cmd == a.root {
-			for i := range a.commands {
-				if a.commands[i].name == arg || a.commands[i].alias == arg {
+			for _, c := range a.commands {
+				if c.name == arg || c.alias == arg {
 					isCmd = true
-					cmd = a.commands[i]
+					cmd = c
 				}
 			}
 		} else {
-			for i := range cmd.subcommands {
-				if cmd.subcommands[i].name == arg || cmd.subcommands[i].alias == arg {
+			for _, c := range cmd.subcommands {
+				if c.name == arg || c.alias == arg {
 					isCmd = true
-					cmd = cmd.subcommands[i]
+					cmd = c
 				}
 			}
 		}
@@ -125,9 +125,9 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 		ctx.args = append(ctx.args, arg)
 	} else {
 		// Flag values mapping
-		for _, flag := range cmd.flags {
-			if _, ok := ctx.flags[flag.Name()]; !ok {
-				ctx.flags[flag.Name()] = flag.Value()
+		for _, f := range cmd.flags {
+			if _, ok := ctx.flags[f.Name()]; !ok {
+				ctx.flags[f.Name()] = f.Value()
 			}
 		}
 	}
@@ -139,20 +139,18 @@ func (a *App) findFlagName(cmd *Command, flagName string) (FlagInfo, int) {
 	var matchedFlag FlagInfo
 
 	if cmd != a.root {
-		for i := range cmd.flags {
-			flag := cmd.flags[i]
-			if flagName == "--"+flag.Name() || (flag.Alias() != "" && flagName == "-"+flag.Alias()) {
-				matchedFlag = flag
+		for _, f := range cmd.flags {
+			if flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias()) {
+				matchedFlag = f
 				break
 			}
 		}
 	}
 
 	if matchedFlag == nil {
-		for i := range a.globalFlags {
-			flag := a.globalFlags[i]
-			if flagName == "--"+flag.Name() || (flag.Alias() != "" && flagName == "-"+flag.Alias()) {
-				matchedFlag = flag
+		for _, f := range a.globalFlags {
+			if flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias()) {
+				matchedFlag = f
 				break
 			}
 		}
