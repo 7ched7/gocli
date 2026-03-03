@@ -18,9 +18,9 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 
 	positionalOnly := false
 
-	// Default global flag values mapping
+	// Global flag values mapping
 	for _, flag := range a.globalFlags {
-		ctx.flags[flag.Name()] = flag.DefaultValue()
+		ctx.flags[flag.Name()] = flag.Value()
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -124,10 +124,10 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 
 		ctx.args = append(ctx.args, arg)
 	} else {
-		// Default command flag values mapping
+		// Flag values mapping
 		for _, flag := range cmd.flags {
 			if _, ok := ctx.flags[flag.Name()]; !ok {
-				ctx.flags[flag.Name()] = flag.DefaultValue()
+				ctx.flags[flag.Name()] = flag.Value()
 			}
 		}
 	}

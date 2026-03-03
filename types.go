@@ -15,14 +15,6 @@ type Context struct {
 	flags   map[string]FlagValue
 }
 
-var zeroValues = map[string]string{
-	"string":  "",
-	"int":     "0",
-	"float64": "0",
-	"bool":    "false",
-	"strings": "",
-}
-
 // TypeString implements FlagValue for string flags.
 type TypeString struct {
 	value *string

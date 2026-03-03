@@ -73,7 +73,7 @@ func exampleApp() *App {
 		WithLong("Send a message to someone").
 		WithMinArg(1).
 		WithMaxArg(1).
-		AddFlag(NewStringFlag("to", "").WithAlias("t").WithDescription("Name to send a message to")).
+		AddFlag(NewStringFlag("to").WithAlias("t").WithDescription("Name to send a message to")).
 		Action(func(ctx *Context) {
 			name := ctx.String("to")
 			text := ctx.Args()[0]

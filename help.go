@@ -168,9 +168,6 @@ func flagsToRows(flags []FlagInfo) []row {
 		}
 
 		right := f.Description()
-		if def := f.DefaultValue().String(); def != zeroValues[f.Metavar()] {
-			right += fmt.Sprintf(" (default: %s)", def)
-		}
 
 		rows = append(rows, row{left, right, len(left)})
 	}
