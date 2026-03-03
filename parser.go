@@ -304,7 +304,7 @@ func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
 		} else {
 			return a.stop(ErrCommandHelp, cmd, nil)
 		}
-	case "--version", "-v":
+	case "--version":
 		if cmd == a.root && a.version != "" {
 			return a.stop(ErrVersion, nil, nil)
 		}

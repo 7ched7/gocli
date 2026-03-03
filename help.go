@@ -25,7 +25,7 @@ func (a *App) Help() string {
 
 	flagRows = append(flagRows,
 		row{left: "-h, --help", right: "Show help", leftWidth: 10},
-		row{left: "-v, --version", right: "Show version", leftWidth: 13},
+		row{left: "    --version", right: "Show version", leftWidth: 13},
 	)
 
 	// Usage
