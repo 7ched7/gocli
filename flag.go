@@ -1,6 +1,6 @@
 package gocli
 
-// Flag represents a single flag for a command.
+// Flag represents a single flag for the CLI.
 // It includes flag name, alias, parsed value, description,
 // metavariable, and an optional validator function.
 type Flag[T any] struct {
@@ -152,12 +152,14 @@ func (f *Flag[T]) WithAlias(alias string) *Flag[T] {
 }
 
 // WithDescription sets the description for the flag.
+// This is shown in flags section within help menu.
 func (f *Flag[T]) WithDescription(description string) *Flag[T] {
 	f.description = description
 	return f
 }
 
 // WithMetavar sets the metavariable for the flag.
+// This is shown next to the flag and indicates the type of the flag value.
 func (f *Flag[T]) WithMetavar(metavar string) *Flag[T] {
 	f.metavar = metavar
 	return f

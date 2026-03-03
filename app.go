@@ -59,14 +59,14 @@ func NewApp(name string) *App {
 }
 
 // WithVersion sets the version for the application.
-// This value is displayed when the --version flag is used.
+// This value is displayed when the version flag is used.
 func (a *App) WithVersion(version string) *App {
 	a.version = version
 	return a
 }
 
 // WithDescription sets the description for the application.
-// The description is typically shown in help menu.
+// The description is shown in application help menu.
 func (a *App) WithDescription(description string) *App {
 	a.description = description
 	return a

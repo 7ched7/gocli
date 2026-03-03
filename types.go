@@ -27,7 +27,7 @@ func (s *TypeString) Set(value string) error {
 func (s *TypeString) Get() any       { return *s.value }
 func (s *TypeString) String() string { return *s.value }
 
-// TypeInt implements FlagValue for integer flags.
+// TypeInt implements FlagValue for int flags.
 type TypeInt struct {
 	value *int
 }
@@ -59,7 +59,7 @@ func (f *TypeFloat) Set(value string) error {
 func (f *TypeFloat) Get() any       { return float64(*f.value) }
 func (f *TypeFloat) String() string { return fmt.Sprintf("%v", *f.value) }
 
-// TypeBool implements FlagValue for boolean flags.
+// TypeBool implements FlagValue for bool flags.
 type TypeBool struct {
 	value *bool
 }
@@ -105,7 +105,7 @@ func (c *Context) Command() *Command { return c.command }
 // Args returns the positional arguments passed to the command.
 func (c *Context) Args() []string { return c.args }
 
-// Flags returns all parsed flags as a key-value pairs.
+// Flags returns all parsed flags as key-value pairs.
 func (c *Context) Flags() map[string]FlagValue { return c.flags }
 
 // Flag returns the value of a flag by name.
@@ -135,8 +135,8 @@ func (c *Context) Bool(flag string) bool {
 	return c.flags[flag].Get().(bool)
 }
 
-// StringSlice returns the value of the flag as a slice of strings.
-// It panics if the flag is not a slice of strings or not present.
+// StringSlice returns the value of the flag as a string slice.
+// It panics if the flag is not a string slice or not present.
 func (c *Context) StringSlice(flag string) []string {
 	return c.flags[flag].Get().([]string)
 }
