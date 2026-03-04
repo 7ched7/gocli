@@ -34,7 +34,7 @@ func NewStringFlag(name string) *Flag[string] {
 	var value string
 	return &Flag[string]{
 		name:    name,
-		value:   &TypeString{value: &value},
+		value:   &typeString{value: &value},
 		metavar: "STRING",
 	}
 }
@@ -43,7 +43,7 @@ func NewStringFlag(name string) *Flag[string] {
 func NewStringFlagVar(name string, variable *string) *Flag[string] {
 	return &Flag[string]{
 		name:    name,
-		value:   &TypeString{value: variable},
+		value:   &typeString{value: variable},
 		metavar: "STRING",
 	}
 }
@@ -53,7 +53,7 @@ func NewIntFlag(name string) *Flag[int] {
 	var value int
 	return &Flag[int]{
 		name:    name,
-		value:   &TypeInt{value: &value},
+		value:   &typeInt{value: &value},
 		metavar: "INT",
 	}
 }
@@ -62,7 +62,7 @@ func NewIntFlag(name string) *Flag[int] {
 func NewIntFlagVar(name string, variable *int) *Flag[int] {
 	return &Flag[int]{
 		name:    name,
-		value:   &TypeInt{value: variable},
+		value:   &typeInt{value: variable},
 		metavar: "INT",
 	}
 }
@@ -72,7 +72,7 @@ func NewFloatFlag(name string) *Flag[float64] {
 	var value float64
 	return &Flag[float64]{
 		name:    name,
-		value:   &TypeFloat{value: &value},
+		value:   &typeFloat64{value: &value},
 		metavar: "FLOAT",
 	}
 }
@@ -81,7 +81,7 @@ func NewFloatFlag(name string) *Flag[float64] {
 func NewFloatFlagVar(name string, variable *float64) *Flag[float64] {
 	return &Flag[float64]{
 		name:    name,
-		value:   &TypeFloat{value: variable},
+		value:   &typeFloat64{value: variable},
 		metavar: "FLOAT",
 	}
 }
@@ -91,7 +91,7 @@ func NewBoolFlag(name string) *Flag[bool] {
 	var value bool
 	return &Flag[bool]{
 		name:    name,
-		value:   &TypeBool{value: &value},
+		value:   &typeBool{value: &value},
 		metavar: "BOOL",
 	}
 }
@@ -100,7 +100,7 @@ func NewBoolFlag(name string) *Flag[bool] {
 func NewBoolFlagVar(name string, variable *bool) *Flag[bool] {
 	return &Flag[bool]{
 		name:    name,
-		value:   &TypeBool{value: variable},
+		value:   &typeBool{value: variable},
 		metavar: "BOOL",
 	}
 }
@@ -110,7 +110,7 @@ func NewStringSliceFlag(name string) *Flag[[]string] {
 	var value []string
 	return &Flag[[]string]{
 		name:    name,
-		value:   &TypeStringSlice{value: &value},
+		value:   &typeStringSlice{value: &value},
 		metavar: "STRINGS",
 	}
 }
@@ -119,7 +119,7 @@ func NewStringSliceFlag(name string) *Flag[[]string] {
 func NewStringSliceFlagVar(name string, variable *[]string) *Flag[[]string] {
 	return &Flag[[]string]{
 		name:    name,
-		value:   &TypeStringSlice{value: variable},
+		value:   &typeStringSlice{value: variable},
 		metavar: "STRINGS",
 	}
 }

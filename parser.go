@@ -184,7 +184,7 @@ func (a *App) handleLongFlag(ctx *Context, cmd *Command, arg string, args []stri
 	}
 
 	switch matchedFlag.Value().(type) {
-	case *TypeBool:
+	case *typeBool:
 		if flagValue == "" && !hasEqualSign {
 			flagValue = "true"
 		}
@@ -221,7 +221,7 @@ func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []str
 		var flagValue string
 
 		switch matchedFlag.Value().(type) {
-		case *TypeBool:
+		case *typeBool:
 			flagValue = "true"
 		default:
 			if j < len(arg[1:])-1 { // -fvalue
@@ -241,7 +241,7 @@ func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []str
 		}
 
 		switch matchedFlag.Value().(type) {
-		case *TypeBool:
+		case *typeBool:
 			continue
 		}
 		break

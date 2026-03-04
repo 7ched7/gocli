@@ -15,87 +15,6 @@ type Context struct {
 	flags   map[string]FlagValue
 }
 
-// TypeString implements FlagValue for string flags.
-type TypeString struct {
-	value *string
-}
-
-func (s *TypeString) Set(value string) error {
-	*s.value = value
-	return nil
-}
-func (s *TypeString) Get() any       { return *s.value }
-func (s *TypeString) String() string { return *s.value }
-
-// TypeInt implements FlagValue for int flags.
-type TypeInt struct {
-	value *int
-}
-
-func (i *TypeInt) Set(value string) error {
-	v, err := strconv.Atoi(value)
-	if err != nil {
-		return fmt.Errorf("error: invalid value '%v': must be an integer.\n", value)
-	}
-	*i.value = v
-	return nil
-}
-func (i *TypeInt) Get() any       { return int(*i.value) }
-func (i *TypeInt) String() string { return strconv.FormatInt(int64(*i.value), 10) }
-
-// TypeFloat implements FlagValue for float64 flags.
-type TypeFloat struct {
-	value *float64
-}
-
-func (f *TypeFloat) Set(value string) error {
-	v, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		return fmt.Errorf("error: invalid value '%v': must be a float.\n", value)
-	}
-	*f.value = v
-	return nil
-}
-func (f *TypeFloat) Get() any       { return float64(*f.value) }
-func (f *TypeFloat) String() string { return fmt.Sprintf("%v", *f.value) }
-
-// TypeBool implements FlagValue for bool flags.
-type TypeBool struct {
-	value *bool
-}
-
-func (b *TypeBool) Set(value string) error {
-	v, err := strconv.ParseBool(value)
-	if err != nil {
-		return fmt.Errorf("error: invalid value '%v': must be a bool.\n", value)
-	}
-	*b.value = v
-	return nil
-}
-func (b *TypeBool) Get() any       { return bool(*b.value) }
-func (b *TypeBool) String() string { return fmt.Sprintf("%v", *b.value) }
-
-// TypeStringSlice implements FlagValue for string slice flags.
-type TypeStringSlice struct {
-	value *[]string
-}
-
-func (ss *TypeStringSlice) Set(value string) error {
-	for _, v := range strings.Split(value, ",") {
-		*ss.value = append(*ss.value, v)
-	}
-	return nil
-}
-func (ss *TypeStringSlice) Get() any {
-	slc := make([]string, 0)
-	for _, v := range *ss.value {
-		slc = append(slc, v)
-	}
-	return slc
-}
-
-func (ss *TypeStringSlice) String() string { return strings.Join(*ss.value, ",") }
-
 // App returns the application instance.
 func (c *Context) App() *App { return c.app }
 
@@ -140,3 +59,103 @@ func (c *Context) Bool(flag string) bool {
 func (c *Context) StringSlice(flag string) []string {
 	return c.flags[flag].Get().([]string)
 }
+
+/*
+------------------------------
+STRING
+------------------------------
+*/
+type typeString struct {
+	value *string
+}
+
+func (s *typeString) Set(value string) error {
+	*s.value = value
+	return nil
+}
+func (s *typeString) Get() any       { return *s.value }
+func (s *typeString) String() string { return *s.value }
+
+/*
+------------------------------
+INT
+------------------------------
+*/
+type typeInt struct {
+	value *int
+}
+
+func (i *typeInt) Set(value string) error {
+	v, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("error: invalid value '%v': must be an integer.\n", value)
+	}
+	*i.value = v
+	return nil
+}
+func (i *typeInt) Get() any       { return int(*i.value) }
+func (i *typeInt) String() string { return strconv.FormatInt(int64(*i.value), 10) }
+
+/*
+------------------------------
+FLOAT64
+------------------------------
+*/
+type typeFloat64 struct {
+	value *float64
+}
+
+func (f *typeFloat64) Set(value string) error {
+	v, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fmt.Errorf("error: invalid value '%v': must be a float.\n", value)
+	}
+	*f.value = v
+	return nil
+}
+func (f *typeFloat64) Get() any       { return float64(*f.value) }
+func (f *typeFloat64) String() string { return fmt.Sprintf("%v", *f.value) }
+
+/*
+------------------------------
+BOOL
+------------------------------
+*/
+type typeBool struct {
+	value *bool
+}
+
+func (b *typeBool) Set(value string) error {
+	v, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("error: invalid value '%v': must be a bool.\n", value)
+	}
+	*b.value = v
+	return nil
+}
+func (b *typeBool) Get() any       { return bool(*b.value) }
+func (b *typeBool) String() string { return fmt.Sprintf("%v", *b.value) }
+
+/*
+------------------------------
+[]STRING
+------------------------------
+*/
+type typeStringSlice struct {
+	value *[]string
+}
+
+func (ss *typeStringSlice) Set(value string) error {
+	for _, v := range strings.Split(value, ",") {
+		*ss.value = append(*ss.value, v)
+	}
+	return nil
+}
+func (ss *typeStringSlice) Get() any {
+	slc := make([]string, 0)
+	for _, v := range *ss.value {
+		slc = append(slc, v)
+	}
+	return slc
+}
+func (ss *typeStringSlice) String() string { return strings.Join(*ss.value, ",") }
