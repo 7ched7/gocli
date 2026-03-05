@@ -29,15 +29,7 @@ func (a *App) Help() string {
 	)
 
 	// Usage
-	sb.WriteString("Usage:\n  " + a.name)
-
-	if len(a.globalFlags) > 0 {
-		sb.WriteString(" [global flags]")
-	}
-	if len(a.commands) > 0 {
-		sb.WriteString(" [command]")
-	}
-	sb.WriteString("\n")
+	a.writeUsage(&sb, a.root)
 
 	// Description
 	writeDescription(&sb, a.description)
@@ -66,24 +58,7 @@ func (a *App) CommandHelp(cmd *Command) string {
 	flagRows := flagsToRows(cmd.flags)
 
 	// Usage
-	sb.WriteString("Usage:\n  " + a.name)
-	sb.WriteString(cmd.fullPath())
-
-	if len(cmd.subcommands) > 0 {
-		sb.WriteString(" [command]")
-	}
-	if len(cmd.flags) > 0 {
-		sb.WriteString(" [flags]")
-	}
-
-	if cmd.maxArg == 1 {
-		sb.WriteString(" [arg]")
-	} else if cmd.maxArg > 1 {
-		sb.WriteString(fmt.Sprintf(" [arg1...arg%d]", cmd.maxArg))
-	} else if cmd.minArg > 0 {
-		sb.WriteString(" [args...]")
-	}
-	fmt.Fprintf(&sb, "\n")
+	a.writeUsage(&sb, cmd)
 
 	// Description
 	writeDescription(&sb, cmd.long)
@@ -186,6 +161,65 @@ func getMaxKeyLen(rows []row) int {
 		max = maxKeyWidth
 	}
 	return max
+}
+
+func (a *App) writeUsage(sb *strings.Builder, cmd *Command) {
+	isRoot := cmd == a.root
+	hasCommand := (isRoot && len(a.commands) > 0) || (!isRoot && len(cmd.subcommands) > 0)
+	hasCmdFlag := !isRoot && len(cmd.flags) > 0
+	hasGlobalFlag := len(a.globalFlags) > 0
+	hasArg := !(cmd.minArg == 0 && cmd.maxArg == 0)
+
+	writeBase := func() {
+		sb.WriteString("  " + a.name)
+
+		if hasGlobalFlag {
+			sb.WriteString(" [global flags]")
+		}
+
+		sb.WriteString(cmd.fullPath())
+
+		if hasCmdFlag {
+			sb.WriteString(" [flags]")
+		}
+	}
+
+	writeArgs := func() {
+		if cmd.minArg == 0 {
+			if cmd.maxArg == 1 {
+				sb.WriteString(" [arg]")
+			} else {
+				sb.WriteString(" [arg]...")
+			}
+		} else {
+			if cmd.maxArg == 1 {
+				sb.WriteString(" <arg>")
+			} else {
+				sb.WriteString(" <arg>...")
+			}
+		}
+	}
+
+	sb.WriteString("Usage:\n")
+	writeBase()
+
+	if hasCommand {
+		if cmd.action == nil && cmd.minArg == 0 && cmd.maxArg == 0 {
+			sb.WriteString(" <command>")
+		} else {
+			sb.WriteString(" [command]")
+		}
+	}
+
+	if hasArg && hasCommand {
+		sb.WriteString("\n")
+		writeBase()
+		writeArgs()
+	} else if hasArg {
+		writeArgs()
+	}
+
+	sb.WriteString("\n")
 }
 
 func writeSection(sb *strings.Builder, title string, rows []row) {
