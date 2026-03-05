@@ -16,7 +16,7 @@ type App struct {
 	globalFlags      []FlagInfo
 	stdout           io.Writer
 	stderr           io.Writer
-	customMessageMap map[errorType]func(errCtx ErrorContext) string
+	customMessageMap map[messageType]func(msgCtx MessageContext) string
 }
 
 const (
@@ -54,7 +54,7 @@ func NewApp(name string) *App {
 		globalFlags:      []FlagInfo{},
 		stdout:           os.Stdout,
 		stderr:           os.Stderr,
-		customMessageMap: map[errorType]func(errCtx ErrorContext) string{},
+		customMessageMap: map[messageType]func(msgCtx MessageContext) string{},
 	}
 }
 

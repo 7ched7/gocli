@@ -73,11 +73,11 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 	}
 
 	if cmd == a.root && a.root.action == nil && len(ctx.args) == 0 {
-		return nil, nil, a.stop(ErrNoCommand, nil, nil)
+		return nil, nil, a.stop(MsgNoCommand, nil, nil)
 	}
 
 	if len(cmd.subcommands) > 0 && cmd.minArg == 0 && cmd.maxArg == 0 {
-		return nil, nil, a.stop(ErrSubcommandRequired, cmd, map[string]string{
+		return nil, nil, a.stop(MsgSubcommandRequired, cmd, map[string]string{
 			"command": cmd.name,
 		})
 	}
@@ -117,7 +117,7 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 	if !isCmd {
 		if ((cmd == a.root && cmd.action == nil) || len(cmd.subcommands) > 0) &&
 			cmd.minArg == 0 && cmd.maxArg == 0 {
-			return nil, a.stop(ErrUnknownCommand, cmd, map[string]string{
+			return nil, a.stop(MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
@@ -157,7 +157,7 @@ func (a *App) findFlagName(cmd *Command, flagName string) (FlagInfo, int) {
 	}
 
 	if matchedFlag == nil {
-		return nil, a.stop(ErrInvalidFlag, cmd, map[string]string{
+		return nil, a.stop(MsgInvalidFlag, cmd, map[string]string{
 			"flag": flagName,
 		})
 	}
@@ -194,7 +194,7 @@ func (a *App) handleLongFlag(ctx *Context, cmd *Command, arg string, args []stri
 				flagValue = args[i+1]
 				i++
 			} else {
-				return nil, i, a.stop(ErrFlagValueMissing, cmd, map[string]string{
+				return nil, i, a.stop(MsgFlagValueMissing, cmd, map[string]string{
 					"flag": matchedFlag.Name(),
 				})
 			}
@@ -230,7 +230,7 @@ func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []str
 				flagValue = args[i+1]
 				i++
 			} else {
-				return nil, i, a.stop(ErrFlagValueMissing, cmd, map[string]string{
+				return nil, i, a.stop(MsgFlagValueMissing, cmd, map[string]string{
 					"flag": matchedFlag.Alias(),
 				})
 			}
@@ -265,17 +265,17 @@ func (a *App) validateArgCount(cmd *Command, args []string) int {
 	nargs := len(args)
 
 	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
-		return a.stop(ErrUnexpectedArgument, cmd, map[string]string{
+		return a.stop(MsgUnexpectedArgument, cmd, map[string]string{
 			"argument": args[0],
 		})
 	}
 	if cmd.minArg > 0 && nargs < cmd.minArg {
-		return a.stop(ErrTooFewArguments, cmd, map[string]string{
+		return a.stop(MsgTooFewArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
 	if cmd.maxArg > 0 && nargs > cmd.maxArg {
-		return a.stop(ErrTooManyArguments, cmd, map[string]string{
+		return a.stop(MsgTooManyArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
@@ -298,13 +298,13 @@ func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
 	switch arg {
 	case "--help", "-h":
 		if cmd == a.root {
-			return a.stop(ErrHelp, nil, nil)
+			return a.stop(MsgHelp, nil, nil)
 		} else {
-			return a.stop(ErrCommandHelp, cmd, nil)
+			return a.stop(MsgCommandHelp, cmd, nil)
 		}
 	case "--version":
 		if cmd == a.root && a.version != "" {
-			return a.stop(ErrVersion, nil, nil)
+			return a.stop(MsgVersion, nil, nil)
 		}
 	}
 
