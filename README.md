@@ -8,7 +8,7 @@ A lightweight, dependency-free CLI framework for Go.
 **gocli** provides a fluent interface that allows you to define commands, subcommands, and flags in a single, readable format, unlike standard flag parsing. It handles help menu generation, alias mapping, argument validation, error handling, and many other things right out of the box, allowing you to focus on your business logic.
 
 ## Installation
-```console
+```bash
 go get github.com/7ched7/gocli@latest
 ```
 
