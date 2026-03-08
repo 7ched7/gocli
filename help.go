@@ -42,7 +42,7 @@ func (a *App) Help() string {
 
 	// Footer
 	if len(a.commands) > 0 {
-		sb.WriteString("\nUse \"" + a.name + " [command] --help\" for more information about a command.\n")
+		sb.WriteString("\nUse \"" + a.name + " <command> --help\" for more information about a command.\n")
 	}
 
 	return sb.String()
