@@ -1,4 +1,4 @@
-![License: MIT](https://img.shields.io/badge/license-MIT-bright)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![Test Status](https://github.com/7ched7/gocli/actions/workflows/test.yml/badge.svg)
 
 # gocli 🦦
@@ -141,7 +141,7 @@ Port: 8000
 ```
 
 ### Custom Validator
-Flags may need to be validated to ensure they meet specific conditions. In such cases, you can use the `WithValidator` method on the flag object to validate the flag value just before the command action is triggered.
+Flags may need to be validated to ensure they meet specific conditions. In such cases, you can use the `WithValidator` method on the flag object to validate the flag value just before the action is triggered.
 ```go
 portFlag.WithValidator(func(ctx *gocli.Context, value int) error {
 	if value < 1 || value > 65535 {
@@ -157,7 +157,7 @@ $ mycli server start -i 127.0.0.1 -p 80000
 invalid port number: 80000
 ```
 
-The **Context** object can be used to write more complex controls by accessing other flag values.
+The **Context** object allows you to write more complex controls by providing access to other flag values.
 ```go
 ip := ctx.String("ip")
 
@@ -172,7 +172,7 @@ $ mycli server start -i 127.0.0.1 -p 8080
 port already in use: 127.0.0.1:8080
 ```
 
-### Custom Type
+### Custom Types
 The framework doesn’t support every type out of the box. Instead, it lets you define and integrate custom types by implementing the **FlagValue** interface, which closely mirrors Go’s standard [flag.Value](https://pkg.go.dev/flag#Value).
 
 The first step is to wrap your desired data type within a struct. This struct acts as a container that the framework will interact with during the flag lifecycle.
