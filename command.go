@@ -137,4 +137,9 @@ func (c *Command) MaxArg() int { return c.maxArg }
 func (a *App) MaxArg() int { return a.root.maxArg }
 
 // Parent returns the parent command in the hierarchy.
-func (c *Command) Parent() *Command { return c.parent }
+func (c *Command) Parent() *Command {
+	if c == nil {
+		return nil
+	}
+	return c.parent
+}
