@@ -8,15 +8,15 @@ import (
 // App represents the main CLI application.
 // It manages application commands, global flags, configurations, and I/O streams.
 type App struct {
-	name             string
-	version          string
-	description      string
-	commands         []*Command
-	root             *Command
-	globalFlags      []FlagInfo
-	stdout           io.Writer
-	stderr           io.Writer
-	customMessageMap map[messageType]func(msgCtx MessageContext) string
+	name              string
+	version           string
+	description       string
+	commands          []*Command
+	root              *Command
+	globalFlags       []FlagInfo
+	stdout            io.Writer
+	stderr            io.Writer
+	customMessagesMap map[messageType]func(msgCtx MessageContext) string
 }
 
 const (
@@ -48,13 +48,13 @@ func (a *App) RunWithArgs(args []string) int {
 // with the given name and default settings.
 func NewApp(name string) *App {
 	return &App{
-		name:             name,
-		commands:         []*Command{},
-		root:             &Command{},
-		globalFlags:      []FlagInfo{},
-		stdout:           os.Stdout,
-		stderr:           os.Stderr,
-		customMessageMap: map[messageType]func(msgCtx MessageContext) string{},
+		name:              name,
+		commands:          []*Command{},
+		root:              &Command{},
+		globalFlags:       []FlagInfo{},
+		stdout:            os.Stdout,
+		stderr:            os.Stderr,
+		customMessagesMap: map[messageType]func(msgCtx MessageContext) string{},
 	}
 }
 

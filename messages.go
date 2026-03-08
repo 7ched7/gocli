@@ -132,8 +132,8 @@ func (a *App) displayMessage(msgCtx MessageContext) int {
 	isCustom := false
 	out := a.Stderr()
 
-	if a.customMessageMap != nil {
-		if fn, ok := a.customMessageMap[msgCtx.msg.messageType]; ok {
+	if a.customMessagesMap != nil {
+		if fn, ok := a.customMessagesMap[msgCtx.msg.messageType]; ok {
 			msg = fn(msgCtx) // override the default message
 			isCustom = true
 		}
@@ -154,6 +154,6 @@ func (a *App) displayMessage(msgCtx MessageContext) int {
 // HandleMessage registers a custom message handler for a specific message type.
 // The handler function runs whenever an event of the given type occurs.
 func (a *App) HandleMessage(messageType messageType, fn func(msgCtx MessageContext) string) *App {
-	a.customMessageMap[messageType] = fn
+	a.customMessagesMap[messageType] = fn
 	return a
 }
