@@ -15,8 +15,7 @@ const tWidth = 80
 const maxKeyWidth = 25
 
 // Help generates and returns the global help menu for the application.
-// It includes usage instructions, a list of commands, global flags,
-// and is displayed when the user types --help or -h or when no command is provided.
+// It includes usage instructions, application description, registered commands and global flags.
 func (a *App) Help() string {
 	var sb strings.Builder
 
@@ -49,8 +48,7 @@ func (a *App) Help() string {
 }
 
 // CommandHelp generates and returns a help menu for a specific command.
-// It includes the full command path, argument expectations, registered subcommands/flags,
-// and is displayed when the user types "[command] --help" or "[command] -h".
+// It includes the full command path, command description, registered subcommands and flags.
 func (a *App) CommandHelp(cmd *Command) string {
 	var sb strings.Builder
 
