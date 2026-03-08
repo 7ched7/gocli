@@ -68,43 +68,43 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data 
 
 	switch messageType {
 	case MsgHelp:
-		return a.Help(), ExitOK
+		return a.Help(), exitOK
 
 	case MsgCommandHelp:
-		return a.CommandHelp(cmd), ExitOK
+		return a.CommandHelp(cmd), exitOK
 
 	case MsgVersion:
-		return fmt.Sprintf("%s version %s\n", a.name, a.version), ExitOK
+		return fmt.Sprintf("%s version %s\n", a.name, a.version), exitOK
 
 	case MsgNoCommand:
-		return a.Help(), ExitUsage
+		return a.Help(), exitUsage
 
 	case MsgUnknownCommand:
-		return fmt.Sprintf("error: unknown command: '%s'\nuse --help for usage information.\n", data["command"]), ExitUsage
+		return fmt.Sprintf("error: unknown command: '%s'\nuse --help for usage information.\n", data["command"]), exitUsage
 
 	case MsgSubcommandRequired:
-		return fmt.Sprintf("error: a subcommand is required for the command: '%s'\nuse --help for usage information.\n", data["command"]), ExitUsage
+		return fmt.Sprintf("error: a subcommand is required for the command: '%s'\nuse --help for usage information.\n", data["command"]), exitUsage
 
 	case MsgInvalidFlag:
-		return fmt.Sprintf("error: invalid flag: '%s'\nuse --help for usage information.\n", data["flag"]), ExitUsage
+		return fmt.Sprintf("error: invalid flag: '%s'\nuse --help for usage information.\n", data["flag"]), exitUsage
 
 	case MsgFlagValueMissing:
-		return fmt.Sprintf("error: a value is required for the flag: '%s'\n", data["flag"]), ExitUsage
+		return fmt.Sprintf("error: a value is required for the flag: '%s'\n", data["flag"]), exitUsage
 
 	case MsgUnexpectedArgument:
-		return fmt.Sprintf("error: unexpected argument: '%s'\n'%s' does not accept arguments.\n", data["argument"], name()), ExitUsage
+		return fmt.Sprintf("error: unexpected argument: '%s'\n'%s' does not accept arguments.\n", data["argument"], name()), exitUsage
 
 	case MsgTooFewArguments:
-		return fmt.Sprintf("error: '%s' requires at least %d argument(s), but got %s.\n", name(), cmd.minArg, data["number"]), ExitUsage
+		return fmt.Sprintf("error: '%s' requires at least %d argument(s), but got %s.\n", name(), cmd.minArg, data["number"]), exitUsage
 
 	case MsgTooManyArguments:
-		return fmt.Sprintf("error: '%s' accepts at most %d argument(s), but got %s.\n", name(), cmd.maxArg, data["number"]), ExitUsage
+		return fmt.Sprintf("error: '%s' accepts at most %d argument(s), but got %s.\n", name(), cmd.maxArg, data["number"]), exitUsage
 
 	case MsgUnsupportedFlagType:
-		return fmt.Sprintf("internal error: unsupported flag type: '%s'\n", data["value"]), ExitUsage
+		return fmt.Sprintf("internal error: unsupported flag type: '%s'\n", data["value"]), exitError
 
 	default:
-		return "internal error: an unexpected error occurred.\n", ExitError
+		return "internal error: an unexpected error occurred.\n", exitError
 	}
 }
 
@@ -143,7 +143,7 @@ func (a *App) displayMessage(msgCtx MessageContext) int {
 		msg = msgCtx.msg.message
 	}
 
-	if msgCtx.msg.code == ExitOK {
+	if msgCtx.msg.code == exitOK {
 		out = a.Stdout()
 	}
 

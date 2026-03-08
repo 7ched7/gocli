@@ -20,10 +20,10 @@ type App struct {
 }
 
 const (
-	StateContinue = -1
-	ExitOK        = 0
-	ExitError     = 1
-	ExitUsage     = 2
+	stateContinue = -1
+	exitOK        = 0
+	exitError     = 1
+	exitUsage     = 2
 )
 
 // Run starts the application with os.Args.
@@ -36,12 +36,12 @@ func (a *App) Run() int {
 // It is useful for testing or integrating the CLI with another program.
 func (a *App) RunWithArgs(args []string) int {
 	ctx, cmd, code := a.parseCommand(args[1:])
-	if code != StateContinue {
+	if code != stateContinue {
 		return code
 	}
 
 	a.runCommand(ctx, cmd)
-	return ExitOK
+	return exitOK
 }
 
 // NewApp creates and returns a new App instance

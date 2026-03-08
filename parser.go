@@ -44,7 +44,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 		// Positional argument
 		if !strings.HasPrefix(arg, "-") {
 			cmd, code = a.handleArgument(ctx, cmd, arg)
-			if code != StateContinue {
+			if code != stateContinue {
 				return nil, nil, code
 			}
 
@@ -53,7 +53,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 		}
 
 		code = a.handleHelpAndVersion(arg, cmd)
-		if code != StateContinue {
+		if code != stateContinue {
 			return nil, nil, code
 		}
 
@@ -63,7 +63,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 			matchedFlag, newi, code = a.handleLongFlag(ctx, cmd, arg, args, i)
 		}
 
-		if code != StateContinue {
+		if code != stateContinue {
 			return nil, nil, code
 		}
 
@@ -82,15 +82,15 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 		})
 	}
 
-	if code := a.validateArgCount(cmd, ctx.args); code != StateContinue {
+	if code := a.validateArgCount(cmd, ctx.args); code != stateContinue {
 		return nil, nil, code
 	}
 
-	if code := a.validateFlags(ctx, parsedFlags); code != StateContinue {
+	if code := a.validateFlags(ctx, parsedFlags); code != stateContinue {
 		return nil, nil, code
 	}
 
-	return ctx, cmd, StateContinue
+	return ctx, cmd, stateContinue
 }
 
 func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, int) {
@@ -132,7 +132,7 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 		}
 	}
 
-	return cmd, StateContinue
+	return cmd, stateContinue
 }
 
 func (a *App) findFlagName(cmd *Command, flagName string) (FlagInfo, int) {
@@ -162,7 +162,7 @@ func (a *App) findFlagName(cmd *Command, flagName string) (FlagInfo, int) {
 		})
 	}
 
-	return matchedFlag, StateContinue
+	return matchedFlag, stateContinue
 }
 
 func (a *App) handleLongFlag(ctx *Context, cmd *Command, arg string, args []string, i int) (FlagInfo, int, int) {
@@ -179,7 +179,7 @@ func (a *App) handleLongFlag(ctx *Context, cmd *Command, arg string, args []stri
 	}
 
 	matchedFlag, code := a.findFlagName(cmd, flagName)
-	if code != StateContinue {
+	if code != stateContinue {
 		return nil, i, code
 	}
 
@@ -201,11 +201,11 @@ func (a *App) handleLongFlag(ctx *Context, cmd *Command, arg string, args []stri
 		}
 	}
 
-	if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != StateContinue {
+	if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != stateContinue {
 		return nil, i, code
 	}
 
-	return matchedFlag, i, StateContinue
+	return matchedFlag, i, stateContinue
 }
 
 func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []string, i int) (FlagInfo, int, int) {
@@ -214,7 +214,7 @@ func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []str
 
 	for j, f := range arg[1:] {
 		matchedFlag, code = a.findFlagName(cmd, "-"+string(f))
-		if code != StateContinue {
+		if code != stateContinue {
 			return nil, i, code
 		}
 
@@ -236,7 +236,7 @@ func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []str
 			}
 		}
 
-		if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != StateContinue {
+		if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != stateContinue {
 			return nil, i, code
 		}
 
@@ -247,18 +247,18 @@ func (a *App) handleShortFlag(ctx *Context, cmd *Command, arg string, args []str
 		break
 	}
 
-	return matchedFlag, i, StateContinue
+	return matchedFlag, i, stateContinue
 }
 
 func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue string) int {
 	if err := matchedFlag.Value().Set(flagValue); err != nil {
 		fmt.Fprint(a.stderr, err)
-		return ExitUsage
+		return exitUsage
 	}
 
 	ctx.flags[matchedFlag.Name()] = matchedFlag.Value()
 
-	return StateContinue
+	return stateContinue
 }
 
 func (a *App) validateArgCount(cmd *Command, args []string) int {
@@ -280,18 +280,18 @@ func (a *App) validateArgCount(cmd *Command, args []string) int {
 		})
 	}
 
-	return StateContinue
+	return stateContinue
 }
 
 func (a *App) validateFlags(ctx *Context, parsedFlags []FlagInfo) int {
 	for _, f := range parsedFlags {
 		if err := f.Validate(ctx); err != nil {
 			fmt.Fprint(a.stderr, err)
-			return ExitUsage
+			return exitUsage
 		}
 	}
 
-	return StateContinue
+	return stateContinue
 }
 
 func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
@@ -308,7 +308,7 @@ func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
 		}
 	}
 
-	return StateContinue
+	return stateContinue
 }
 
 func (a *App) runCommand(ctx *Context, cmd *Command) {
