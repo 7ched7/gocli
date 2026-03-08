@@ -103,7 +103,7 @@ verboseFlag := gocli.NewBoolFlag("verbose")
 app.AddGlobalFlag(verboseFlag)
 ```
 
-In the framework, flags are accesed in two main ways:
+In the framework, flags are accessed in two main ways:
 - [Variable Binding](#variable-binding) - bind the variable to the flag
 - [Dynamic Access via Context](#dynamic-access-via-context) - access the flag at runtime
 
