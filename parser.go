@@ -76,7 +76,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 		return nil, nil, a.stop(MsgNoCommand, nil, nil)
 	}
 
-	if len(cmd.subcommands) > 0 && cmd.minArg == 0 && cmd.maxArg == 0 {
+	if cmd != a.root && len(cmd.subcommands) > 0 && cmd.action == nil && cmd.minArg == 0 && cmd.maxArg == 0 {
 		return nil, nil, a.stop(MsgSubcommandRequired, cmd, map[string]string{
 			"command": cmd.name,
 		})
