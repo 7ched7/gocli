@@ -24,8 +24,13 @@ func (a *App) Help() string {
 
 	flagRows = append(flagRows,
 		row{left: "-h, --help", right: "Show help", leftWidth: 10},
-		row{left: "    --version", right: "Show version", leftWidth: 13},
 	)
+
+	if a.version != "" {
+		flagRows = append(flagRows,
+			row{left: "    --version", right: "Show version", leftWidth: 13},
+		)
+	}
 
 	// Usage
 	a.writeUsage(&sb, a.root)
