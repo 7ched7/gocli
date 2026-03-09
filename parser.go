@@ -73,7 +73,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 	}
 
 	if cmd == a.root && a.root.action == nil && len(ctx.args) == 0 {
-		return nil, nil, a.stop(MsgNoCommand, nil, nil)
+		return nil, nil, a.stop(MsgNoCommand, cmd, nil)
 	}
 
 	if cmd != a.root && len(cmd.subcommands) > 0 && cmd.action == nil && cmd.minArg == 0 && cmd.maxArg == 0 {
@@ -115,7 +115,7 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 	}
 
 	if !isCmd {
-		if ((cmd == a.root && cmd.action == nil) || len(cmd.subcommands) > 0) &&
+		if ((cmd == a.root && cmd.action == nil) || cmd != a.root && len(cmd.subcommands) > 0) &&
 			cmd.minArg == 0 && cmd.maxArg == 0 {
 			return nil, a.stop(MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
@@ -298,13 +298,13 @@ func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
 	switch arg {
 	case "--help", "-h":
 		if cmd == a.root {
-			return a.stop(MsgHelp, nil, nil)
+			return a.stop(MsgHelp, cmd, nil)
 		} else {
 			return a.stop(MsgCommandHelp, cmd, nil)
 		}
 	case "--version":
 		if cmd == a.root && a.version != "" {
-			return a.stop(MsgVersion, nil, nil)
+			return a.stop(MsgVersion, cmd, nil)
 		}
 	}
 
