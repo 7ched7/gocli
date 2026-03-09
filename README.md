@@ -103,7 +103,7 @@ verboseFlag := gocli.NewBoolFlag("verbose")
 app.AddGlobalFlag(verboseFlag)
 ```
 
-In the framework, flags are accessed in two main ways:
+In this framework, flags are accessed in two main ways:
 - [Variable Binding](#variable-binding) - bind the variable to the flag
 - [Dynamic Access via Context](#dynamic-access-via-context) - access the flag at runtime
 
@@ -173,7 +173,7 @@ port already in use: 127.0.0.1:8080
 ```
 
 ### Custom Types
-The framework doesn’t support every type out of the box. Instead, it lets you define and integrate custom types by implementing the **FlagValue** interface, which closely mirrors Go’s standard [flag.Value](https://pkg.go.dev/flag#Value).
+This framework doesn’t support every type out of the box. Instead, it lets you define and integrate custom types by implementing the **FlagValue** interface, which closely mirrors Go’s standard [flag.Value](https://pkg.go.dev/flag#Value).
 
 The first step is to wrap your desired data type within a struct. This struct acts as a container that the framework will interact with during the flag lifecycle.
 ```go
@@ -192,7 +192,7 @@ func (i *IP) Set(value string) error {
 	return fmt.Errorf("invalid IP address: %s\n", value)
 }
 ```
-To retrieve the processed data back from the framework, you need to implement the `Get()` method. This returns the underlying value as **any** type.
+To retrieve the processed data back, you need to implement the `Get()` method. This returns the underlying value as **any** type.
 ```go
 func (i *IP) Get() any { 
 	return i.value 
@@ -219,9 +219,9 @@ invalid IP address: 256.168.1.1
 ```
 
 ### Custom Messages
-One of the core features of the framework is its flexible message handling. You can override the default behavior for various CLI events to provide more user-friendly messages. 
+One of the core features of this framework is its flexible message handling. You can override the default behavior for various CLI events to provide more user-friendly messages. 
 
-Simply specify one of the predefined events provided by the framework using the `HandleMessage` method and return the message you want to display.
+Simply specify one of the predefined events using the `HandleMessage` method and return the message you want to display.
 ```go
 app.HandleMessage(gocli.MsgUnknownCommand, func(msgCtx gocli.MessageContext) string {
 	return "invalid command\n"
