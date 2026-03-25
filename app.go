@@ -8,12 +8,8 @@ import (
 // App represents the main CLI application.
 // It manages application commands, global flags, configurations, and I/O streams.
 type App struct {
-	name              string
-	version           string
-	description       string
-	commands          []*Command
 	root              *Command
-	globalFlags       []FlagInfo
+	version           string
 	stdout            io.Writer
 	stderr            io.Writer
 	customMessagesMap map[messageType]func(msgCtx MessageContext) string
@@ -48,10 +44,11 @@ func (a *App) RunWithArgs(args []string) int {
 // with the given name and default settings.
 func NewApp(name string) *App {
 	return &App{
-		name:              name,
-		commands:          []*Command{},
-		root:              &Command{},
-		globalFlags:       []FlagInfo{},
+		root: &Command{
+			name:        name,
+			subcommands: []*Command{},
+			flags:       []FlagInfo{},
+		},
 		stdout:            os.Stdout,
 		stderr:            os.Stderr,
 		customMessagesMap: map[messageType]func(msgCtx MessageContext) string{},
@@ -68,7 +65,7 @@ func (a *App) WithVersion(version string) *App {
 // WithDescription sets the description for the application.
 // The description is shown in application help menu.
 func (a *App) WithDescription(description string) *App {
-	a.description = description
+	a.root.long = description
 	return a
 }
 
@@ -85,19 +82,19 @@ func (a *App) WithStderr(err io.Writer) *App {
 }
 
 // Name returns the display name of the application.
-func (a *App) Name() string { return a.name }
+func (a *App) Name() string { return a.root.name }
 
 // Version returns the version of the application.
 func (a *App) Version() string { return a.version }
 
 // Description returns the description of the application.
-func (a *App) Description() string { return a.description }
+func (a *App) Description() string { return a.root.long }
 
 // Commands returns all registered top-level commands.
-func (a *App) Commands() []*Command { return a.commands }
+func (a *App) Commands() []*Command { return a.root.subcommands }
 
 // GlobalFlags returns all registered global flags.
-func (a *App) GlobalFlags() []FlagInfo { return a.globalFlags }
+func (a *App) GlobalFlags() []FlagInfo { return a.root.flags }
 
 // Stdout returns the output writer used for standard output.
 // If nil, it falls back to os.Stdout.

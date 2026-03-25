@@ -29,7 +29,7 @@ func NewCommand(name string) *Command {
 // AddCommand registers a top-level command to the application.
 func (a *App) AddCommand(command *Command) *App {
 	command.parent = a.root
-	a.commands = append(a.commands, command)
+	a.root.subcommands = append(a.root.subcommands, command)
 	return a
 }
 

@@ -19,7 +19,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 	positionalOnly := false
 
 	// Global flag values mapping
-	for _, f := range a.globalFlags {
+	for _, f := range a.root.flags {
 		ctx.flags[f.Name()] = f.Value()
 	}
 
@@ -98,7 +98,7 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 
 	if len(ctx.args) == 0 {
 		if cmd == a.root {
-			for _, c := range a.commands {
+			for _, c := range a.root.subcommands {
 				if c.name == arg || c.alias == arg {
 					isCmd = true
 					cmd = c
@@ -148,7 +148,7 @@ func (a *App) findFlagName(cmd *Command, flagName string) (FlagInfo, int) {
 	}
 
 	if matchedFlag == nil {
-		for _, f := range a.globalFlags {
+		for _, f := range a.root.flags {
 			if flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias()) {
 				matchedFlag = f
 				break

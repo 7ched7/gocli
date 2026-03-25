@@ -141,7 +141,7 @@ func (c *Command) AddFlag(flag FlagInfo) *Command {
 // AddGlobalFlag registers a global flag to the application.
 // Global flags apply to all commands.
 func (a *App) AddGlobalFlag(flag FlagInfo) *App {
-	a.globalFlags = append(a.globalFlags, flag)
+	a.root.AddFlag(flag)
 	return a
 }
 

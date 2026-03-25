@@ -61,7 +61,7 @@ func (m *MessageContext) Msg() *CLIMessage { return m.msg }
 func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data map[string]string) (string, int) {
 	name := func() string {
 		if cmd == nil || cmd == a.root {
-			return a.name
+			return a.root.name
 		}
 		return cmd.name
 	}
@@ -74,7 +74,7 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data 
 		return a.CommandHelp(cmd), exitOK
 
 	case MsgVersion:
-		return fmt.Sprintf("%s version %s\n", a.name, a.version), exitOK
+		return fmt.Sprintf("%s version %s\n", a.root.name, a.version), exitOK
 
 	case MsgNoCommand:
 		return a.Help(), exitUsage

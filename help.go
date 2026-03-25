@@ -19,8 +19,8 @@ const maxKeyWidth = 25
 func (a *App) Help() string {
 	var sb strings.Builder
 
-	cmdRows := commandsToRows(a.commands)
-	flagRows := flagsToRows(a.globalFlags)
+	cmdRows := commandsToRows(a.root.subcommands)
+	flagRows := flagsToRows(a.root.flags)
 
 	flagRows = append(flagRows,
 		row{left: "-h, --help", right: "Show help", leftWidth: 10},
@@ -36,7 +36,7 @@ func (a *App) Help() string {
 	a.writeUsage(&sb, a.root)
 
 	// Description
-	writeDescription(&sb, a.description)
+	writeDescription(&sb, a.root.long)
 
 	// Commands
 	writeSection(&sb, "Commands", cmdRows)
@@ -45,8 +45,8 @@ func (a *App) Help() string {
 	writeSection(&sb, "Global Flags", flagRows)
 
 	// Footer
-	if len(a.commands) > 0 {
-		sb.WriteString("\nUse \"" + a.name + " <command> --help\" for more information about a command.\n")
+	if len(a.root.subcommands) > 0 {
+		sb.WriteString("\nUse \"" + a.root.name + " <command> --help\" for more information about a command.\n")
 	}
 
 	return sb.String()
@@ -168,13 +168,13 @@ func getMaxKeyLen(rows []row) int {
 
 func (a *App) writeUsage(sb *strings.Builder, cmd *Command) {
 	isRoot := cmd == a.root
-	hasCommand := (isRoot && len(a.commands) > 0) || (!isRoot && len(cmd.subcommands) > 0)
+	hasCommand := (isRoot && len(a.root.subcommands) > 0) || (!isRoot && len(cmd.subcommands) > 0)
 	hasCmdFlag := !isRoot && len(cmd.flags) > 0
-	hasGlobalFlag := len(a.globalFlags) > 0
+	hasGlobalFlag := len(a.root.flags) > 0
 	hasArg := !(cmd.minArg == 0 && cmd.maxArg == 0)
 
 	writeBase := func() {
-		sb.WriteString("  " + a.name)
+		sb.WriteString("  " + a.root.name)
 
 		if hasGlobalFlag {
 			sb.WriteString(" [global flags]")
@@ -246,7 +246,7 @@ func writeDescription(sb *strings.Builder, text string) {
 
 func (c *Command) fullPath() string {
 	if c.parent == nil {
-		return c.name
+		return ""
 	}
 	return c.parent.fullPath() + " " + c.name
 }
