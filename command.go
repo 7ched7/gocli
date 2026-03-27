@@ -26,10 +26,9 @@ func NewCommand(name string) *Command {
 	}
 }
 
-// AddCommand registers a top-level command to the application.
-func (a *App) AddCommand(command *Command) *App {
-	command.parent = a.root
-	a.root.subcommands = append(a.root.subcommands, command)
+// AddCommand registers top-level commands to the application.
+func (a *App) AddCommand(commands ...*Command) *App {
+	a.root.AddSubcommand(commands...)
 	return a
 }
 
@@ -78,10 +77,12 @@ func (a *App) WithMaxArg(max int) *App {
 	return a
 }
 
-// AddSubcommand registers a subcommand to the current command.
-func (c *Command) AddSubcommand(subcommand *Command) *Command {
-	subcommand.parent = c
-	c.subcommands = append(c.subcommands, subcommand)
+// AddSubcommand registers subcommands to the current command.
+func (c *Command) AddSubcommand(commands ...*Command) *Command {
+	for _, cmd := range commands {
+		cmd.parent = c
+		c.subcommands = append(c.subcommands, cmd)
+	}
 	return c
 }
 

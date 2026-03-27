@@ -132,16 +132,18 @@ func NewCustomFlagVar(name string, variable FlagValue) *Flag[FlagValue] {
 	}
 }
 
-// AddFlag registers a flag to the command.
-func (c *Command) AddFlag(flag FlagInfo) *Command {
-	c.flags = append(c.flags, flag)
+// AddFlag registers flags to the command.
+func (c *Command) AddFlag(flags ...FlagInfo) *Command {
+	for _, f := range flags {
+		c.flags = append(c.flags, f)
+	}
 	return c
 }
 
-// AddGlobalFlag registers a global flag to the application.
+// AddGlobalFlag registers global flags to the application.
 // Global flags apply to all commands.
-func (a *App) AddGlobalFlag(flag FlagInfo) *App {
-	a.root.AddFlag(flag)
+func (a *App) AddGlobalFlag(flags ...FlagInfo) *App {
+	a.root.AddFlag(flags...)
 	return a
 }
 
