@@ -66,7 +66,7 @@ func TestApp(t *testing.T) {
 func exampleApp() *App {
 	app := NewApp("mycli").WithVersion("0.1.0")
 
-	app.AddGlobalFlag(NewBoolFlag("verbose").WithAlias("v").WithDescription("Verbose output"))
+	app.AddGlobalFlag(NewBoolFlag("verbose", false).WithAlias("v").WithDescription("Verbose output"))
 
 	app.WithStdout(io.Discard)
 	app.WithStderr(io.Discard)
@@ -107,7 +107,7 @@ func exampleApp() *App {
 		AddSubcommand(
 			NewCommand("mul").
 				WithShort("Multiplies numbers").
-				AddFlag(NewStringSliceFlag("numbers").WithAlias("n").WithDescription("Number list to multiply")).
+				AddFlag(NewStringSliceFlag("numbers", []string{}).WithAlias("n").WithDescription("Number list to multiply")).
 				Action(func(ctx *Context) {
 					result := 1
 					for _, n := range ctx.StringSlice("numbers") {

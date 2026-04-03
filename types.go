@@ -143,11 +143,17 @@ func (b *typeBool) String() string { return fmt.Sprintf("%v", *b.value) }
 */
 type typeStringSlice struct {
 	value *[]string
+	isSet bool
 }
 
 func (ss *typeStringSlice) Set(value string) error {
 	for _, v := range strings.Split(value, ",") {
-		*ss.value = append(*ss.value, v)
+		if !ss.isSet {
+			*ss.value = []string{v}
+			ss.isSet = true
+		} else {
+			*ss.value = append(*ss.value, v)
+		}
 	}
 	return nil
 }

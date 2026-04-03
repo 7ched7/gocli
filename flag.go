@@ -4,12 +4,13 @@ package gocli
 // It includes flag name, alias, parsed value, description,
 // metavariable, and an optional validator function.
 type Flag[T any] struct {
-	name        string
-	alias       string
-	value       FlagValue
-	description string
-	metavar     string
-	validator   func(ctx *Context, value T) error
+	name         string
+	alias        string
+	value        FlagValue
+	defaultValue any
+	description  string
+	metavar      string
+	validator    func(ctx *Context, value T) error
 }
 
 // FlagValue defines an interface for all flag values.
@@ -25,110 +26,139 @@ type FlagInfo interface {
 	Alias() string               // Alias returns the optional alias of the flag.
 	Value() FlagValue            // Value returns the parsed value of the flag.
 	Description() string         // Description returns the description of the flag.
+	DefaultValue() any           // DefaultValue returns the default value of the flag.
 	Metavar() string             // Metavar returns the metavariable of the flag.
 	Validate(ctx *Context) error // Validate runs the flag validator function, if set.
 }
 
-// NewStringFlag creates a new string flag with the given name.
-func NewStringFlag(name string) *Flag[string] {
-	var value string
+// NewStringFlag creates a new string flag with the given name and default value.
+func NewStringFlag(name string, defaultValue string) *Flag[string] {
+	value := defaultValue
 	return &Flag[string]{
-		name:    name,
-		value:   &typeString{value: &value},
-		metavar: "STRING",
+		name:         name,
+		value:        &typeString{value: &value},
+		defaultValue: defaultValue,
+		metavar:      "STRING",
 	}
 }
 
-// NewStringFlagVar creates a new string flag using the provided variable.
+// NewStringFlagVar creates a new string flag with the given name and provided variable.
 func NewStringFlagVar(name string, variable *string) *Flag[string] {
+	defaultValue := *variable
 	return &Flag[string]{
-		name:    name,
-		value:   &typeString{value: variable},
-		metavar: "STRING",
+		name:         name,
+		value:        &typeString{value: variable},
+		defaultValue: defaultValue,
+		metavar:      "STRING",
 	}
 }
 
-// NewIntFlag creates a new int flag with the given name.
-func NewIntFlag(name string) *Flag[int] {
-	var value int
+// NewIntFlag creates a new int flag with the given name and default value.
+func NewIntFlag(name string, defaultValue int) *Flag[int] {
+	value := defaultValue
 	return &Flag[int]{
-		name:    name,
-		value:   &typeInt{value: &value},
-		metavar: "INT",
+		name:         name,
+		value:        &typeInt{value: &value},
+		defaultValue: defaultValue,
+		metavar:      "INT",
 	}
 }
 
-// NewIntFlagVar creates a new int flag using the provided variable.
+// NewIntFlagVar creates a new int flag with the given name and provided variable.
 func NewIntFlagVar(name string, variable *int) *Flag[int] {
+	defaultValue := *variable
 	return &Flag[int]{
-		name:    name,
-		value:   &typeInt{value: variable},
-		metavar: "INT",
+		name:         name,
+		value:        &typeInt{value: variable},
+		defaultValue: defaultValue,
+		metavar:      "INT",
 	}
 }
 
-// NewFloatFlag creates a new float64 flag with the given name.
-func NewFloatFlag(name string) *Flag[float64] {
-	var value float64
+// NewFloatFlag creates a new float64 flag with the given name and default value.
+func NewFloatFlag(name string, defaultValue float64) *Flag[float64] {
+	value := defaultValue
 	return &Flag[float64]{
-		name:    name,
-		value:   &typeFloat64{value: &value},
-		metavar: "FLOAT",
+		name:         name,
+		value:        &typeFloat64{value: &value},
+		defaultValue: defaultValue,
+		metavar:      "FLOAT",
 	}
 }
 
-// NewFloatFlagVar creates a new float64 flag using the provided variable.
+// NewFloatFlagVar creates a new float64 flag with the given name and provided variable.
 func NewFloatFlagVar(name string, variable *float64) *Flag[float64] {
+	defaultValue := *variable
 	return &Flag[float64]{
-		name:    name,
-		value:   &typeFloat64{value: variable},
-		metavar: "FLOAT",
+		name:         name,
+		value:        &typeFloat64{value: variable},
+		defaultValue: defaultValue,
+		metavar:      "FLOAT",
 	}
 }
 
-// NewBoolFlag creates a new bool flag with the given name.
-func NewBoolFlag(name string) *Flag[bool] {
-	var value bool
+// NewBoolFlag creates a new bool flag with the given name and default value.
+func NewBoolFlag(name string, defaultValue bool) *Flag[bool] {
+	value := defaultValue
 	return &Flag[bool]{
-		name:    name,
-		value:   &typeBool{value: &value},
-		metavar: "BOOL",
+		name:         name,
+		value:        &typeBool{value: &value},
+		defaultValue: defaultValue,
+		metavar:      "BOOL",
 	}
 }
 
-// NewBoolFlagVar creates a new bool flag using the provided variable.
+// NewBoolFlagVar creates a new bool flag with the given name and provided variable.
 func NewBoolFlagVar(name string, variable *bool) *Flag[bool] {
+	defaultValue := *variable
 	return &Flag[bool]{
-		name:    name,
-		value:   &typeBool{value: variable},
-		metavar: "BOOL",
+		name:         name,
+		value:        &typeBool{value: variable},
+		defaultValue: defaultValue,
+		metavar:      "BOOL",
 	}
 }
 
-// NewStringSliceFlag creates a new string slice flag with the given name.
-func NewStringSliceFlag(name string) *Flag[[]string] {
+// NewStringSliceFlag creates a new string slice flag with the given name and default value.
+func NewStringSliceFlag(name string, defaultValue []string) *Flag[[]string] {
 	var value []string
+
+	if len(defaultValue) > 0 {
+		value = make([]string, len(defaultValue))
+		copy(value, defaultValue)
+	}
+
 	return &Flag[[]string]{
-		name:    name,
-		value:   &typeStringSlice{value: &value},
-		metavar: "STRINGS",
+		name:         name,
+		value:        &typeStringSlice{value: &value},
+		defaultValue: defaultValue,
+		metavar:      "STRINGS",
 	}
 }
 
-// NewStringSliceFlagVar creates a new string slice flag using the provided variable.
+// NewStringSliceFlagVar creates a new string slice flag with the given name and provided variable.
 func NewStringSliceFlagVar(name string, variable *[]string) *Flag[[]string] {
+	var defaultValue []string
+
+	if len(*variable) > 0 {
+		defaultValue = make([]string, len(*variable))
+		copy(defaultValue, *variable)
+	}
+
 	return &Flag[[]string]{
-		name:    name,
-		value:   &typeStringSlice{value: variable},
-		metavar: "STRINGS",
+		name:         name,
+		value:        &typeStringSlice{value: variable},
+		defaultValue: defaultValue,
+		metavar:      "STRINGS",
 	}
 }
 
-// NewCustomFlagVar creates a new flag using custom FlagValue implementations.
+// NewCustomFlagVar creates a new custom flag with the given name and provided variable.
 func NewCustomFlagVar(name string, variable FlagValue) *Flag[FlagValue] {
 	return &Flag[FlagValue]{
-		name:  name,
-		value: variable,
+		name:         name,
+		value:        variable,
+		defaultValue: variable.Get(),
 	}
 }
 
@@ -186,6 +216,9 @@ func (f *Flag[T]) Value() FlagValue { return f.value }
 // Description returns the description of the flag.
 // If not set, it returns an empty string.
 func (f *Flag[T]) Description() string { return f.description }
+
+// DefaultValue returns the default value of the flag.
+func (f *Flag[T]) DefaultValue() any { return f.defaultValue }
 
 // Metavar returns the metavariable of the flag.
 func (f *Flag[T]) Metavar() string { return f.metavar }
