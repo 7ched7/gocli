@@ -9,17 +9,17 @@ import (
 // Context holds positional arguments
 // and parsed flags for a command execution.
 type Context struct {
-	app     *App
-	command *Command
+	app     AppInfo
+	command CommandInfo
 	args    []string
 	flags   map[string]FlagInfo
 }
 
 // App returns the application instance.
-func (c *Context) App() *App { return c.app }
+func (c *Context) App() AppInfo { return c.app }
 
 // Command returns the executed command.
-func (c *Context) Command() *Command { return c.command }
+func (c *Context) Command() CommandInfo { return c.command }
 
 // Args returns the positional arguments passed to the command.
 func (c *Context) Args() []string { return c.args }

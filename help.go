@@ -54,17 +54,17 @@ func (a *App) Help() string {
 
 // CommandHelp generates and returns a help menu for a specific command.
 // It includes the full command path, command description, registered subcommands and flags.
-func (a *App) CommandHelp(cmd *Command) string {
+func (a *App) CommandHelp(cmd CommandInfo) string {
 	var sb strings.Builder
 
-	cmdRows := commandsToRows(cmd.subcommands)
-	flagRows := flagsToRows(cmd.flags)
+	cmdRows := commandsToRows(cmd.Subcommands())
+	flagRows := flagsToRows(cmd.Flags())
 
 	// Usage
 	a.writeUsage(&sb, cmd)
 
 	// Description
-	writeDescription(&sb, cmd.long)
+	writeDescription(&sb, cmd.Long())
 
 	// Commands
 	writeSection(&sb, "Commands", cmdRows)
@@ -110,15 +110,15 @@ func writeRow(left, right string, leftExceeds bool, maxKeyLen int) string {
 	return fmt.Sprintf("  %-*s  %s\n", maxKeyLen, left, wrap(right, maxKeyLen+4, leftExceeds))
 }
 
-func commandsToRows(cmds []*Command) []row {
+func commandsToRows(cmds []CommandInfo) []row {
 	rows := make([]row, 0)
 
 	for _, c := range cmds {
-		left := c.name
-		if c.alias != "" {
-			left += ", " + c.alias
+		left := c.Name()
+		if c.Alias() != "" {
+			left += ", " + c.Alias()
 		}
-		rows = append(rows, row{left, c.short, len(left)})
+		rows = append(rows, row{left, c.Short(), len(left)})
 	}
 
 	return rows
@@ -166,12 +166,12 @@ func getMaxKeyLen(rows []row) int {
 	return max
 }
 
-func (a *App) writeUsage(sb *strings.Builder, cmd *Command) {
+func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
 	isRoot := cmd == a.root
-	hasCommand := (isRoot && len(a.root.subcommands) > 0) || (!isRoot && len(cmd.subcommands) > 0)
-	hasCmdFlag := !isRoot && len(cmd.flags) > 0
+	hasCommand := (isRoot && len(cmd.Subcommands()) > 0) || (!isRoot && len(cmd.Subcommands()) > 0)
+	hasCmdFlag := !isRoot && len(cmd.Flags()) > 0
 	hasGlobalFlag := len(a.root.flags) > 0
-	hasArg := !(cmd.minArg == 0 && cmd.maxArg == 0)
+	hasArg := !(cmd.MinArg() == 0 && cmd.MaxArg() == 0)
 
 	writeBase := func() {
 		sb.WriteString("  " + a.root.name)
@@ -180,7 +180,7 @@ func (a *App) writeUsage(sb *strings.Builder, cmd *Command) {
 			sb.WriteString(" [global flags]")
 		}
 
-		sb.WriteString(cmd.fullPath())
+		sb.WriteString(fullPath(cmd))
 
 		if hasCmdFlag {
 			sb.WriteString(" [flags]")
@@ -188,14 +188,14 @@ func (a *App) writeUsage(sb *strings.Builder, cmd *Command) {
 	}
 
 	writeArgs := func() {
-		if cmd.minArg == 0 {
-			if cmd.maxArg == 1 {
+		if cmd.MinArg() == 0 {
+			if cmd.MaxArg() == 1 {
 				sb.WriteString(" [arg]")
 			} else {
 				sb.WriteString(" [arg]...")
 			}
 		} else {
-			if cmd.maxArg == 1 {
+			if cmd.MaxArg() == 1 {
 				sb.WriteString(" <arg>")
 			} else {
 				sb.WriteString(" <arg>...")
@@ -207,7 +207,7 @@ func (a *App) writeUsage(sb *strings.Builder, cmd *Command) {
 	writeBase()
 
 	if hasCommand {
-		if cmd.action == nil && cmd.minArg == 0 && cmd.maxArg == 0 {
+		if cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
 			sb.WriteString(" <command>")
 		} else {
 			sb.WriteString(" [command]")
@@ -244,9 +244,9 @@ func writeDescription(sb *strings.Builder, text string) {
 	sb.WriteString("\n" + wrap(text, 0, false) + "\n")
 }
 
-func (c *Command) fullPath() string {
-	if c.parent == nil {
+func fullPath(c CommandInfo) string {
+	if c.Parent() == nil {
 		return ""
 	}
-	return c.parent.fullPath() + " " + c.name
+	return fullPath(c.Parent()) + " " + c.Name()
 }

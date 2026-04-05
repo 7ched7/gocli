@@ -27,7 +27,7 @@ type CLIMessage struct {
 	code        int
 	message     string
 	messageType messageType
-	command     *Command
+	command     CommandInfo
 	data        map[string]string
 }
 
@@ -41,7 +41,7 @@ func (m *CLIMessage) Message() string { return m.message }
 func (m *CLIMessage) MessageType() messageType { return m.messageType }
 
 // Command returns the command where the event occured.
-func (m *CLIMessage) Command() *Command { return m.command }
+func (m *CLIMessage) Command() CommandInfo { return m.command }
 
 // Data returns a map of metadata related to the event.
 func (m *CLIMessage) Data() map[string]string { return m.data }
@@ -49,22 +49,22 @@ func (m *CLIMessage) Data() map[string]string { return m.data }
 // MessageContext holds the application instance
 // and message object providing details about the event.
 type MessageContext struct {
-	app *App
+	app AppInfo
 	msg *CLIMessage
 }
 
 // App returns the application instance.
-func (m *MessageContext) App() *App { return m.app }
+func (m *MessageContext) App() AppInfo { return m.app }
 
 // Msg returns the message object providing details about the event.
 func (m *MessageContext) Msg() *CLIMessage { return m.msg }
 
-func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data map[string]string) (string, int) {
+func (a *App) getMessageAndExitCode(messageType messageType, cmd CommandInfo, data map[string]string) (string, int) {
 	name := func() string {
 		if cmd == nil || cmd == a.root {
 			return a.root.name
 		}
-		return cmd.name
+		return cmd.Name()
 	}
 
 	switch messageType {
@@ -99,10 +99,10 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data 
 		return fmt.Sprintf("error: unexpected argument: '%s'\n'%s' does not accept arguments.\n", data["argument"], name()), exitUsage
 
 	case MsgTooFewArguments:
-		return fmt.Sprintf("error: '%s' requires at least %d argument(s), but got %s.\n", name(), cmd.minArg, data["number"]), exitUsage
+		return fmt.Sprintf("error: '%s' requires at least %d argument(s), but got %s.\n", name(), cmd.MinArg(), data["number"]), exitUsage
 
 	case MsgTooManyArguments:
-		return fmt.Sprintf("error: '%s' accepts at most %d argument(s), but got %s.\n", name(), cmd.maxArg, data["number"]), exitUsage
+		return fmt.Sprintf("error: '%s' accepts at most %d argument(s), but got %s.\n", name(), cmd.MaxArg(), data["number"]), exitUsage
 
 	case MsgUnsupportedFlagType:
 		return fmt.Sprintf("internal error: unsupported flag type: '%s'\n", data["value"]), exitError
@@ -112,7 +112,7 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data 
 	}
 }
 
-func (a *App) stop(messageType messageType, cmd *Command, data map[string]string) int {
+func (a *App) stop(messageType messageType, cmd CommandInfo, data map[string]string) int {
 	message, code := a.getMessageAndExitCode(messageType, cmd, data)
 
 	cliMsg := &CLIMessage{

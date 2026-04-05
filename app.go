@@ -15,6 +15,21 @@ type App struct {
 	customMessagesMap map[messageType]func(msgCtx MessageContext) string
 }
 
+// AppInfo provides access to application metadata and behaviour.
+type AppInfo interface {
+	Name() string                       // Name returns the display name of the application.
+	Version() string                    // Version returns the version of the application.
+	Description() string                // Description returns the description of the application.
+	Commands() []CommandInfo            // Commands returns all registered top-level commands.
+	GlobalFlags() []FlagInfo            // GlobalFlags returns all registered global flags.
+	MinArg() int                        // MinArg returns the minimum number of positional arguments.
+	MaxArg() int                        // MaxArg returns the maximum number of positional arguments.
+	Stdout() io.Writer                  // Stdout returns the output writer used for standard output.
+	Stderr() io.Writer                  // Stderr returns the output writer used for standard error.
+	Help() string                       // Help generates and returns the global help menu for the application.
+	CommandHelp(cmd CommandInfo) string // CommandHelp generates and returns a help menu for a specific command.
+}
+
 const (
 	stateContinue = -1
 	exitOK        = 0
@@ -40,7 +55,7 @@ func NewApp(name string) *App {
 	return &App{
 		root: &Command{
 			name:        name,
-			subcommands: []*Command{},
+			subcommands: []CommandInfo{},
 			flags:       []FlagInfo{},
 		},
 		stdout:            os.Stdout,
@@ -63,6 +78,18 @@ func (a *App) WithDescription(description string) *App {
 	return a
 }
 
+// WithMinArg sets the minimum number of positional arguments required by the application.
+func (a *App) WithMinArg(min int) *App {
+	a.root.minArg = min
+	return a
+}
+
+// WithMaxArg sets the maximum number of positional arguments allowed for the application.
+func (a *App) WithMaxArg(max int) *App {
+	a.root.maxArg = max
+	return a
+}
+
 // WithStdout sets the writer used for standard output.
 func (a *App) WithStdout(out io.Writer) *App {
 	a.stdout = out
@@ -72,6 +99,26 @@ func (a *App) WithStdout(out io.Writer) *App {
 // WithStderr sets the writer used for error output.
 func (a *App) WithStderr(err io.Writer) *App {
 	a.stderr = err
+	return a
+}
+
+// Action assigns the default action to be executed when the application is run
+// without specifying any command.
+func (a *App) Action(fn func(ctx *Context)) *App {
+	a.root.actionF = fn
+	return a
+}
+
+// AddCommand registers top-level commands to the application.
+func (a *App) AddCommand(commands ...*Command) *App {
+	a.root.AddSubcommand(commands...)
+	return a
+}
+
+// AddGlobalFlag registers global flags to the application.
+// Global flags apply to all commands.
+func (a *App) AddGlobalFlag(flags ...FlagInfo) *App {
+	a.root.AddFlag(flags...)
 	return a
 }
 
@@ -85,10 +132,18 @@ func (a *App) Version() string { return a.version }
 func (a *App) Description() string { return a.root.long }
 
 // Commands returns all registered top-level commands.
-func (a *App) Commands() []*Command { return a.root.subcommands }
+func (a *App) Commands() []CommandInfo { return a.root.subcommands }
 
 // GlobalFlags returns all registered global flags.
 func (a *App) GlobalFlags() []FlagInfo { return a.root.flags }
+
+// MinArg returns the minimum number of positional arguments required by the application.
+// If not set, it returns 0.
+func (a *App) MinArg() int { return a.root.minArg }
+
+// MaxArg returns the maximum number of positional arguments allowed for the application.
+// If not set, it returns 0.
+func (a *App) MaxArg() int { return a.root.maxArg }
 
 // Stdout returns the output writer used for standard output.
 // If nil, it falls back to os.Stdout.

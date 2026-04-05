@@ -9,12 +9,27 @@ type Command struct {
 	alias       string
 	short       string
 	long        string
-	subcommands []*Command
+	subcommands []CommandInfo
 	flags       []FlagInfo
 	minArg      int
 	maxArg      int
-	action      func(ctx *Context)
-	parent      *Command
+	actionF     func(ctx *Context)
+	parent      CommandInfo
+}
+
+// CommandInfo provides access to command metadata and behaviour.
+type CommandInfo interface {
+	Name() string               // Name returns the name of the command.
+	Alias() string              // Alias returns the alias of the command.
+	Short() string              // Short returns the short description of the command.
+	Long() string               // Long returns the long description of the command.
+	Subcommands() []CommandInfo // Subcommands returns all subcommands registered under the command.
+	Flags() []FlagInfo          // Flags returns the list of flags registered for the command.
+	MinArg() int                // MinArg returns the minimum number of positional arguments.
+	MaxArg() int                // MaxArg returns the maximum number of positional arguments.
+	Parent() CommandInfo        // Parent returns the parent command in the hierarchy.
+
+	action() func(ctx *Context)
 }
 
 // NewCommand creates a new command with the given name.
@@ -22,14 +37,8 @@ func NewCommand(name string) *Command {
 	return &Command{
 		name:        name,
 		flags:       []FlagInfo{},
-		subcommands: []*Command{},
+		subcommands: []CommandInfo{},
 	}
-}
-
-// AddCommand registers top-level commands to the application.
-func (a *App) AddCommand(commands ...*Command) *App {
-	a.root.AddSubcommand(commands...)
-	return a
 }
 
 // WithAlias sets the short alias for the command.
@@ -59,22 +68,25 @@ func (c *Command) WithMinArg(min int) *Command {
 	return c
 }
 
-// WithMinArg sets the minimum number of positional arguments required by the application.
-func (a *App) WithMinArg(min int) *App {
-	a.root.minArg = min
-	return a
-}
-
 // WithMaxArg sets the maximum number of positional arguments allowed for the command.
 func (c *Command) WithMaxArg(max int) *Command {
 	c.maxArg = max
 	return c
 }
 
-// WithMaxArg sets the maximum number of positional arguments allowed for the application.
-func (a *App) WithMaxArg(max int) *App {
-	a.root.maxArg = max
-	return a
+// Action assigns the function to be executed when the command is run.
+// The handler receives a Context containing positional arguments and parsed flags.
+func (c *Command) Action(fn func(ctx *Context)) *Command {
+	c.actionF = fn
+	return c
+}
+
+// AddFlag registers flags to the command.
+func (c *Command) AddFlag(flags ...FlagInfo) *Command {
+	for _, f := range flags {
+		c.flags = append(c.flags, f)
+	}
+	return c
 }
 
 // AddSubcommand registers subcommands to the current command.
@@ -84,20 +96,6 @@ func (c *Command) AddSubcommand(commands ...*Command) *Command {
 		c.subcommands = append(c.subcommands, cmd)
 	}
 	return c
-}
-
-// Action assigns the function to be executed when the command is run.
-// The handler receives a Context containing positional arguments and parsed flags.
-func (c *Command) Action(fn func(ctx *Context)) *Command {
-	c.action = fn
-	return c
-}
-
-// Action assigns the default action to be executed when the application is run
-// without specifying any command.
-func (a *App) Action(fn func(ctx *Context)) *App {
-	a.root.action = fn
-	return a
 }
 
 // Name returns the name of the command.
@@ -116,7 +114,7 @@ func (c *Command) Short() string { return c.short }
 func (c *Command) Long() string { return c.long }
 
 // Subcommands returns all subcommands registered under the command.
-func (c *Command) Subcommands() []*Command { return c.subcommands }
+func (c *Command) Subcommands() []CommandInfo { return c.subcommands }
 
 // Flags returns the list of flags registered for the command.
 func (c *Command) Flags() []FlagInfo { return c.flags }
@@ -125,23 +123,17 @@ func (c *Command) Flags() []FlagInfo { return c.flags }
 // If not set, it returns 0.
 func (c *Command) MinArg() int { return c.minArg }
 
-// MinArg returns the minimum number of positional arguments required by the application.
-// If not set, it returns 0.
-func (a *App) MinArg() int { return a.root.minArg }
-
 // MaxArg returns the maximum number of positional arguments allowed for the command.
 // If not set, it returns 0.
 func (c *Command) MaxArg() int { return c.maxArg }
 
-// MaxArg returns the maximum number of positional arguments allowed for the application.
-// If not set, it returns 0.
-func (a *App) MaxArg() int { return a.root.maxArg }
-
 // Parent returns the parent command in the hierarchy.
 // If the command has no parent command, it returns nil.
-func (c *Command) Parent() *Command {
+func (c *Command) Parent() CommandInfo {
 	if c == nil {
 		return nil
 	}
 	return c.parent
 }
+
+func (c *Command) action() func(ctx *Context) { return c.actionF }

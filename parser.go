@@ -20,11 +20,9 @@ func (a *App) handler(args []string) int {
 }
 
 func (a *App) parse(args []string) (*Context, int) {
-	cmd := a.root
-
 	ctx := &Context{
 		app:     a,
-		command: cmd,
+		command: a.root,
 		args:    []string{},
 		flags:   map[string]FlagInfo{},
 	}
@@ -32,7 +30,7 @@ func (a *App) parse(args []string) (*Context, int) {
 	positionalOnly := false
 
 	// Global flag values mapping
-	for _, f := range cmd.flags {
+	for _, f := range ctx.command.Flags() {
 		ctx.flags[f.Name()] = f
 	}
 
@@ -55,24 +53,22 @@ func (a *App) parse(args []string) (*Context, int) {
 
 		// Positional argument
 		if !strings.HasPrefix(arg, "-") {
-			cmd, code = a.handleArgument(ctx, cmd, arg)
-			if code != stateContinue {
+			if code = a.handleArgument(ctx, arg); code != stateContinue {
 				return nil, code
 			}
 
-			ctx.command = cmd
 			continue
 		}
 
-		code = a.handleHelpAndVersion(arg, cmd)
+		code = a.handleHelpAndVersion(arg, ctx.command)
 		if code != stateContinue {
 			return nil, code
 		}
 
 		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
-			newi, code = a.handleShortFlag(ctx.flags, cmd, arg, args, i)
+			newi, code = a.handleShortFlag(ctx, arg, args, i)
 		} else {
-			newi, code = a.handleLongFlag(ctx.flags, cmd, arg, args, i)
+			newi, code = a.handleLongFlag(ctx, arg, args, i)
 		}
 
 		if code != stateContinue {
@@ -82,35 +78,39 @@ func (a *App) parse(args []string) (*Context, int) {
 		i = newi
 	}
 
-	if cmd == a.root && a.root.action == nil && len(ctx.args) == 0 {
+	cmd := ctx.command
+
+	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 {
 		return nil, a.stop(MsgNoCommand, cmd, nil)
 	}
 
-	if cmd != a.root && len(cmd.subcommands) > 0 && cmd.action == nil && cmd.minArg == 0 && cmd.maxArg == 0 {
+	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
 		return nil, a.stop(MsgSubcommandRequired, cmd, map[string]string{
-			"command": cmd.name,
+			"command": cmd.Name(),
 		})
 	}
 
 	return ctx, stateContinue
 }
 
-func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, int) {
+func (a *App) handleArgument(ctx *Context, arg string) int {
 	isCmd := false
 
 	if len(ctx.args) == 0 {
-		for _, c := range cmd.subcommands {
-			if c.name == arg || c.alias == arg {
+		for _, c := range ctx.command.Subcommands() {
+			if c.Name() == arg || c.Alias() == arg {
 				isCmd = true
-				cmd = c
+				ctx.command = c
 			}
 		}
 	}
 
+	cmd := ctx.command
+
 	if !isCmd {
-		if ((cmd == a.root && cmd.action == nil) || cmd != a.root && len(cmd.subcommands) > 0) &&
-			cmd.minArg == 0 && cmd.maxArg == 0 {
-			return nil, a.stop(MsgUnknownCommand, cmd, map[string]string{
+		if ((cmd == a.root && cmd.action() == nil) || cmd != a.root && len(cmd.Subcommands()) > 0) &&
+			cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
+			return a.stop(MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
@@ -118,21 +118,21 @@ func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, 
 		ctx.args = append(ctx.args, arg)
 	} else {
 		// Flag values mapping
-		for _, f := range cmd.flags {
+		for _, f := range cmd.Flags() {
 			if _, ok := ctx.flags[f.Name()]; !ok {
 				ctx.flags[f.Name()] = f
 			}
 		}
 	}
 
-	return cmd, stateContinue
+	return stateContinue
 }
 
-func (a *App) findFlag(cmd *Command, flagName string) (FlagInfo, int) {
+func (a *App) findFlag(cmd CommandInfo, flagName string) (FlagInfo, int) {
 	var matchedFlag FlagInfo
 
 	if cmd != a.root {
-		for _, f := range cmd.flags {
+		for _, f := range cmd.Flags() {
 			if flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias()) {
 				matchedFlag = f
 				break
@@ -158,12 +158,12 @@ func (a *App) findFlag(cmd *Command, flagName string) (FlagInfo, int) {
 	return matchedFlag, stateContinue
 }
 
-func (a *App) handleShortFlag(flags map[string]FlagInfo, cmd *Command, arg string, args []string, i int) (int, int) {
+func (a *App) handleShortFlag(ctx *Context, arg string, args []string, i int) (int, int) {
 	var matchedFlag FlagInfo
 	var code int
 
 	for j, f := range arg[1:] {
-		matchedFlag, code = a.findFlag(cmd, "-"+string(f))
+		matchedFlag, code = a.findFlag(ctx.command, "-"+string(f))
 		if code != stateContinue {
 			return i, code
 		}
@@ -180,13 +180,13 @@ func (a *App) handleShortFlag(flags map[string]FlagInfo, cmd *Command, arg strin
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.stop(MsgFlagValueMissing, cmd, map[string]string{
+				return i, a.stop(MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": matchedFlag.Alias(),
 				})
 			}
 		}
 
-		if code := a.handleFlagValue(flags, matchedFlag, flagValue); code != stateContinue {
+		if code := a.handleFlagValue(ctx.flags, matchedFlag, flagValue); code != stateContinue {
 			return i, code
 		}
 
@@ -200,7 +200,7 @@ func (a *App) handleShortFlag(flags map[string]FlagInfo, cmd *Command, arg strin
 	return i, stateContinue
 }
 
-func (a *App) handleLongFlag(flags map[string]FlagInfo, cmd *Command, arg string, args []string, i int) (int, int) {
+func (a *App) handleLongFlag(ctx *Context, arg string, args []string, i int) (int, int) {
 	var flagName string
 	var flagValue string
 	hasEqualSign := strings.Contains(arg, "=")
@@ -213,7 +213,7 @@ func (a *App) handleLongFlag(flags map[string]FlagInfo, cmd *Command, arg string
 		flagName = arg
 	}
 
-	matchedFlag, code := a.findFlag(cmd, flagName)
+	matchedFlag, code := a.findFlag(ctx.command, flagName)
 	if code != stateContinue {
 		return i, code
 	}
@@ -229,14 +229,14 @@ func (a *App) handleLongFlag(flags map[string]FlagInfo, cmd *Command, arg string
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.stop(MsgFlagValueMissing, cmd, map[string]string{
+				return i, a.stop(MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": matchedFlag.Name(),
 				})
 			}
 		}
 	}
 
-	if code := a.handleFlagValue(flags, matchedFlag, flagValue); code != stateContinue {
+	if code := a.handleFlagValue(ctx.flags, matchedFlag, flagValue); code != stateContinue {
 		return i, code
 	}
 
@@ -255,7 +255,7 @@ func (a *App) handleFlagValue(flags map[string]FlagInfo, matchedFlag FlagInfo, f
 	return stateContinue
 }
 
-func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
+func (a *App) handleHelpAndVersion(arg string, cmd CommandInfo) int {
 	switch arg {
 	case "--help", "-h":
 		if cmd == a.root {
@@ -276,17 +276,17 @@ func (a *App) validate(ctx *Context) int {
 	nargs := len(ctx.args)
 	cmd := ctx.command
 
-	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
+	if cmd.MinArg() == 0 && cmd.MaxArg() == 0 && nargs > 0 {
 		return a.stop(MsgUnexpectedArgument, cmd, map[string]string{
 			"argument": ctx.args[0],
 		})
 	}
-	if cmd.minArg > 0 && nargs < cmd.minArg {
+	if cmd.MinArg() > 0 && nargs < cmd.MinArg() {
 		return a.stop(MsgTooFewArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
-	if cmd.maxArg > 0 && nargs > cmd.maxArg {
+	if cmd.MaxArg() > 0 && nargs > cmd.MaxArg() {
 		return a.stop(MsgTooManyArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
@@ -313,7 +313,7 @@ func (a *App) validate(ctx *Context) int {
 }
 
 func (a *App) run(ctx *Context) {
-	if ctx.command.action != nil {
-		ctx.command.action(ctx)
+	if ctx.command.action() != nil {
+		ctx.command.action()(ctx)
 	}
 }

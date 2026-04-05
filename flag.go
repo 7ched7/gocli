@@ -168,21 +168,6 @@ func NewCustomFlagVar(name string, variable FlagValue) *Flag[FlagValue] {
 	}
 }
 
-// AddFlag registers flags to the command.
-func (c *Command) AddFlag(flags ...FlagInfo) *Command {
-	for _, f := range flags {
-		c.flags = append(c.flags, f)
-	}
-	return c
-}
-
-// AddGlobalFlag registers global flags to the application.
-// Global flags apply to all commands.
-func (a *App) AddGlobalFlag(flags ...FlagInfo) *App {
-	a.root.AddFlag(flags...)
-	return a
-}
-
 // WithAlias sets the alias for the flag.
 func (f *Flag[T]) WithAlias(alias string) *Flag[T] {
 	f.alias = alias
@@ -254,7 +239,7 @@ func (f *Flag[T]) Validate(ctx *Context) error {
 	}
 }
 
-func (f *Flag[T]) set() { f.isSet = true }
-
 // IsSet returns whether the flag is set.
 func (f *Flag[T]) IsSet() bool { return f.isSet }
+
+func (f *Flag[T]) set() { f.isSet = true }
