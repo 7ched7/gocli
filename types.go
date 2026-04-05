@@ -12,7 +12,7 @@ type Context struct {
 	app     *App
 	command *Command
 	args    []string
-	flags   map[string]FlagValue
+	flags   map[string]FlagInfo
 }
 
 // App returns the application instance.
@@ -25,10 +25,10 @@ func (c *Context) Command() *Command { return c.command }
 func (c *Context) Args() []string { return c.args }
 
 // Flags returns all parsed flags as key-value pairs.
-func (c *Context) Flags() map[string]FlagValue { return c.flags }
+func (c *Context) Flags() map[string]FlagInfo { return c.flags }
 
 // Lookup returns the FlagValue interface of the flag with the given name.
-func (c *Context) Lookup(name string) FlagValue { return c.flags[name] }
+func (c *Context) Lookup(name string) FlagValue { return c.flags[name].Value() }
 
 // String returns the named flag as string.
 // It panics if not found or invalid type.

@@ -8,9 +8,11 @@ type Flag[T any] struct {
 	alias        string
 	value        FlagValue
 	defaultValue any
+	isRequired   bool
 	description  string
 	metavar      string
 	validator    func(ctx *Context, value T) error
+	isSet        bool
 }
 
 // FlagValue defines an interface for all flag values.
@@ -27,8 +29,12 @@ type FlagInfo interface {
 	Value() FlagValue            // Value returns the parsed value of the flag.
 	Description() string         // Description returns the description of the flag.
 	DefaultValue() any           // DefaultValue returns the default value of the flag.
+	IsRequired() bool            // IsRequired returns whether the flag is required.
 	Metavar() string             // Metavar returns the metavariable of the flag.
 	Validate(ctx *Context) error // Validate runs the flag validator function, if set.
+	IsSet() bool                 // IsSet returns whether the flag is set.
+
+	set()
 }
 
 // NewStringFlag creates a new string flag with the given name and default value.
@@ -183,6 +189,12 @@ func (f *Flag[T]) WithAlias(alias string) *Flag[T] {
 	return f
 }
 
+// WithRequired sets the flag to required.
+func (f *Flag[T]) WithRequired() *Flag[T] {
+	f.isRequired = true
+	return f
+}
+
 // WithDescription sets the description for the flag.
 // This is shown in flags section within help menu.
 func (f *Flag[T]) WithDescription(description string) *Flag[T] {
@@ -213,12 +225,15 @@ func (f *Flag[T]) Alias() string { return f.alias }
 // Value returns the value of the flag.
 func (f *Flag[T]) Value() FlagValue { return f.value }
 
+// DefaultValue returns the default value of the flag.
+func (f *Flag[T]) DefaultValue() any { return f.defaultValue }
+
+// IsRequired returns whether the flag is required.
+func (f *Flag[T]) IsRequired() bool { return f.isRequired }
+
 // Description returns the description of the flag.
 // If not set, it returns an empty string.
 func (f *Flag[T]) Description() string { return f.description }
-
-// DefaultValue returns the default value of the flag.
-func (f *Flag[T]) DefaultValue() any { return f.defaultValue }
 
 // Metavar returns the metavariable of the flag.
 func (f *Flag[T]) Metavar() string { return f.metavar }
@@ -238,3 +253,8 @@ func (f *Flag[T]) Validate(ctx *Context) error {
 		panic("invalid type")
 	}
 }
+
+func (f *Flag[T]) set() { f.isSet = true }
+
+// IsSet returns whether the flag is set.
+func (f *Flag[T]) IsSet() bool { return f.isSet }

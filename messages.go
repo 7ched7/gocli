@@ -13,6 +13,7 @@ const (
 	MsgSubcommandRequired
 	MsgInvalidFlag
 	MsgFlagValueMissing
+	MsgFlagRequired
 	MsgUnexpectedArgument
 	MsgTooFewArguments
 	MsgTooManyArguments
@@ -90,6 +91,9 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd *Command, data 
 
 	case MsgFlagValueMissing:
 		return fmt.Sprintf("error: a value is required for the flag: '%s'\n", data["flag"]), exitUsage
+
+	case MsgFlagRequired:
+		return fmt.Sprintf("error: flag is required: '%s'\n", data["flag"]), exitUsage
 
 	case MsgUnexpectedArgument:
 		return fmt.Sprintf("error: unexpected argument: '%s'\n'%s' does not accept arguments.\n", data["argument"], name()), exitUsage
