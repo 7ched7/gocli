@@ -5,9 +5,22 @@ import (
 	"strings"
 )
 
-func (a *App) parseCommand(args []string) (*Context, *Command, int) {
+func (a *App) handler(args []string) int {
+	ctx, code := a.parse(args)
+	if code != stateContinue {
+		return code
+	}
+
+	if code = a.validate(ctx); code != stateContinue {
+		return code
+	}
+
+	a.run(ctx)
+	return exitOK
+}
+
+func (a *App) parse(args []string) (*Context, int) {
 	cmd := a.root
-	flags := map[string]FlagInfo{}
 
 	ctx := &Context{
 		app:     a,
@@ -20,7 +33,7 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 
 	// Global flag values mapping
 	for _, f := range cmd.flags {
-		flags[f.Name()] = f
+		ctx.flags[f.Name()] = f
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -42,9 +55,9 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 
 		// Positional argument
 		if !strings.HasPrefix(arg, "-") {
-			cmd, code = a.handleArgument(ctx, flags, cmd, arg)
+			cmd, code = a.handleArgument(ctx, cmd, arg)
 			if code != stateContinue {
-				return nil, nil, code
+				return nil, code
 			}
 
 			ctx.command = cmd
@@ -53,46 +66,36 @@ func (a *App) parseCommand(args []string) (*Context, *Command, int) {
 
 		code = a.handleHelpAndVersion(arg, cmd)
 		if code != stateContinue {
-			return nil, nil, code
+			return nil, code
 		}
 
 		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
-			newi, code = a.handleShortFlag(flags, cmd, arg, args, i)
+			newi, code = a.handleShortFlag(ctx.flags, cmd, arg, args, i)
 		} else {
-			newi, code = a.handleLongFlag(flags, cmd, arg, args, i)
+			newi, code = a.handleLongFlag(ctx.flags, cmd, arg, args, i)
 		}
 
 		if code != stateContinue {
-			return nil, nil, code
+			return nil, code
 		}
 
 		i = newi
 	}
 
 	if cmd == a.root && a.root.action == nil && len(ctx.args) == 0 {
-		return nil, nil, a.stop(MsgNoCommand, cmd, nil)
+		return nil, a.stop(MsgNoCommand, cmd, nil)
 	}
 
 	if cmd != a.root && len(cmd.subcommands) > 0 && cmd.action == nil && cmd.minArg == 0 && cmd.maxArg == 0 {
-		return nil, nil, a.stop(MsgSubcommandRequired, cmd, map[string]string{
+		return nil, a.stop(MsgSubcommandRequired, cmd, map[string]string{
 			"command": cmd.name,
 		})
 	}
 
-	ctx.flags = flags
-
-	if code := a.validateArgCount(ctx); code != stateContinue {
-		return nil, nil, code
-	}
-
-	if code := a.validateFlags(ctx); code != stateContinue {
-		return nil, nil, code
-	}
-
-	return ctx, cmd, stateContinue
+	return ctx, stateContinue
 }
 
-func (a *App) handleArgument(ctx *Context, flags map[string]FlagInfo, cmd *Command, arg string) (*Command, int) {
+func (a *App) handleArgument(ctx *Context, cmd *Command, arg string) (*Command, int) {
 	isCmd := false
 
 	if len(ctx.args) == 0 {
@@ -117,7 +120,7 @@ func (a *App) handleArgument(ctx *Context, flags map[string]FlagInfo, cmd *Comma
 		// Flag values mapping
 		for _, f := range cmd.flags {
 			if _, ok := ctx.flags[f.Name()]; !ok {
-				flags[f.Name()] = f
+				ctx.flags[f.Name()] = f
 			}
 		}
 	}
@@ -153,6 +156,48 @@ func (a *App) findFlag(cmd *Command, flagName string) (FlagInfo, int) {
 	}
 
 	return matchedFlag, stateContinue
+}
+
+func (a *App) handleShortFlag(flags map[string]FlagInfo, cmd *Command, arg string, args []string, i int) (int, int) {
+	var matchedFlag FlagInfo
+	var code int
+
+	for j, f := range arg[1:] {
+		matchedFlag, code = a.findFlag(cmd, "-"+string(f))
+		if code != stateContinue {
+			return i, code
+		}
+
+		var flagValue string
+
+		switch matchedFlag.Value().(type) {
+		case *typeBool:
+			flagValue = "true"
+		default:
+			if j < len(arg[1:])-1 { // -fvalue
+				flagValue = arg[j+2:]
+			} else if i+1 < len(args) { // -f value
+				flagValue = args[i+1]
+				i++
+			} else {
+				return i, a.stop(MsgFlagValueMissing, cmd, map[string]string{
+					"flag": matchedFlag.Alias(),
+				})
+			}
+		}
+
+		if code := a.handleFlagValue(flags, matchedFlag, flagValue); code != stateContinue {
+			return i, code
+		}
+
+		switch matchedFlag.Value().(type) {
+		case *typeBool:
+			continue
+		}
+		break
+	}
+
+	return i, stateContinue
 }
 
 func (a *App) handleLongFlag(flags map[string]FlagInfo, cmd *Command, arg string, args []string, i int) (int, int) {
@@ -198,48 +243,6 @@ func (a *App) handleLongFlag(flags map[string]FlagInfo, cmd *Command, arg string
 	return i, stateContinue
 }
 
-func (a *App) handleShortFlag(flags map[string]FlagInfo, cmd *Command, arg string, args []string, i int) (int, int) {
-	var matchedFlag FlagInfo
-	var code int
-
-	for j, f := range arg[1:] {
-		matchedFlag, code = a.findFlag(cmd, "-"+string(f))
-		if code != stateContinue {
-			return i, code
-		}
-
-		var flagValue string
-
-		switch matchedFlag.Value().(type) {
-		case *typeBool:
-			flagValue = "true"
-		default:
-			if j < len(arg[1:])-1 { // -fvalue
-				flagValue = arg[j+2:]
-			} else if i+1 < len(args) { // -f value
-				flagValue = args[i+1]
-				i++
-			} else {
-				return i, a.stop(MsgFlagValueMissing, cmd, map[string]string{
-					"flag": matchedFlag.Alias(),
-				})
-			}
-		}
-
-		if code := a.handleFlagValue(flags, matchedFlag, flagValue); code != stateContinue {
-			return i, code
-		}
-
-		switch matchedFlag.Value().(type) {
-		case *typeBool:
-			continue
-		}
-		break
-	}
-
-	return i, stateContinue
-}
-
 func (a *App) handleFlagValue(flags map[string]FlagInfo, matchedFlag FlagInfo, flagValue string) int {
 	if err := matchedFlag.Value().Set(flagValue); err != nil {
 		fmt.Fprint(a.stderr, err)
@@ -248,50 +251,6 @@ func (a *App) handleFlagValue(flags map[string]FlagInfo, matchedFlag FlagInfo, f
 
 	matchedFlag.set()
 	flags[matchedFlag.Name()] = matchedFlag
-
-	return stateContinue
-}
-
-func (a *App) validateArgCount(ctx *Context) int {
-	nargs := len(ctx.args)
-	cmd := ctx.command
-
-	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
-		return a.stop(MsgUnexpectedArgument, cmd, map[string]string{
-			"argument": ctx.args[0],
-		})
-	}
-	if cmd.minArg > 0 && nargs < cmd.minArg {
-		return a.stop(MsgTooFewArguments, cmd, map[string]string{
-			"number": fmt.Sprint(nargs),
-		})
-	}
-	if cmd.maxArg > 0 && nargs > cmd.maxArg {
-		return a.stop(MsgTooManyArguments, cmd, map[string]string{
-			"number": fmt.Sprint(nargs),
-		})
-	}
-
-	return stateContinue
-}
-
-func (a *App) validateFlags(ctx *Context) int {
-	for _, f := range ctx.flags {
-		if f.IsRequired() && !f.IsSet() {
-			return a.stop(MsgFlagRequired, ctx.command, map[string]string{
-				"flag": f.Name(),
-			})
-		}
-	}
-
-	for _, f := range ctx.flags {
-		if f.IsSet() {
-			if err := f.Validate(ctx); err != nil {
-				fmt.Fprint(a.stderr, err)
-				return exitUsage
-			}
-		}
-	}
 
 	return stateContinue
 }
@@ -313,8 +272,48 @@ func (a *App) handleHelpAndVersion(arg string, cmd *Command) int {
 	return stateContinue
 }
 
-func (a *App) runCommand(ctx *Context, cmd *Command) {
-	if cmd.action != nil {
-		cmd.action(ctx)
+func (a *App) validate(ctx *Context) int {
+	nargs := len(ctx.args)
+	cmd := ctx.command
+
+	if cmd.maxArg == 0 && cmd.minArg == 0 && nargs > 0 {
+		return a.stop(MsgUnexpectedArgument, cmd, map[string]string{
+			"argument": ctx.args[0],
+		})
+	}
+	if cmd.minArg > 0 && nargs < cmd.minArg {
+		return a.stop(MsgTooFewArguments, cmd, map[string]string{
+			"number": fmt.Sprint(nargs),
+		})
+	}
+	if cmd.maxArg > 0 && nargs > cmd.maxArg {
+		return a.stop(MsgTooManyArguments, cmd, map[string]string{
+			"number": fmt.Sprint(nargs),
+		})
+	}
+
+	for _, f := range ctx.flags {
+		if f.IsRequired() && !f.IsSet() {
+			return a.stop(MsgFlagRequired, cmd, map[string]string{
+				"flag": f.Name(),
+			})
+		}
+	}
+
+	for _, f := range ctx.flags {
+		if f.IsSet() {
+			if err := f.Validate(ctx); err != nil {
+				fmt.Fprint(a.stderr, err)
+				return exitUsage
+			}
+		}
+	}
+
+	return stateContinue
+}
+
+func (a *App) run(ctx *Context) {
+	if ctx.command.action != nil {
+		ctx.command.action(ctx)
 	}
 }
