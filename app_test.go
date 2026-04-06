@@ -80,11 +80,12 @@ func exampleApp() *App {
 		WithMinArg(1).
 		WithMaxArg(1).
 		AddFlag(NewStringFlagVar("to", &defaultName).WithAlias("t").WithDescription("Name to send a message to")).
-		Action(func(ctx *Context) {
+		WithAction(func(ctx *Context) error {
 			name := ctx.String("to")
 			text := ctx.Args()[0]
 
 			fmt.Fprintf(app.Stdout(), "Hey %s! %s\n", name, text)
+			return nil
 		})
 
 	mathCmd := NewCommand("math").
@@ -97,10 +98,11 @@ func exampleApp() *App {
 				WithShort("Adds two numbers").
 				WithMinArg(2).
 				WithMaxArg(2).
-				Action(func(ctx *Context) {
+				WithAction(func(ctx *Context) error {
 					a := ctx.Args()[0]
 					b := ctx.Args()[1]
 					fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
+					return nil
 				}))
 
 	mathCmd.
@@ -108,12 +110,13 @@ func exampleApp() *App {
 			NewCommand("mul").
 				WithShort("Multiplies numbers").
 				AddFlag(NewStringSliceFlag("numbers", []string{}).WithAlias("n").WithDescription("Number list to multiply")).
-				Action(func(ctx *Context) {
+				WithAction(func(ctx *Context) error {
 					result := 1
 					for _, n := range ctx.StringSlice("numbers") {
 						result *= atoi(n)
 					}
 					fmt.Fprint(app.Stdout(), fmt.Sprint(result)+"\n")
+					return nil
 				}))
 
 	app.AddCommand(messageCmd)

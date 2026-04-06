@@ -13,7 +13,7 @@ type Command struct {
 	flags       []FlagInfo
 	minArg      int
 	maxArg      int
-	actionF     func(ctx *Context)
+	actionF     func(ctx *Context) error
 	parent      CommandInfo
 }
 
@@ -29,7 +29,7 @@ type CommandInfo interface {
 	MaxArg() int                // MaxArg returns the maximum number of positional arguments.
 	Parent() CommandInfo        // Parent returns the parent command in the hierarchy.
 
-	action() func(ctx *Context)
+	action() func(ctx *Context) error
 }
 
 // NewCommand creates a new command with the given name.
@@ -74,9 +74,9 @@ func (c *Command) WithMaxArg(max int) *Command {
 	return c
 }
 
-// Action assigns the function to be executed when the command is run.
+// WithAction assigns the function to be executed when the command is run.
 // The handler receives a Context containing positional arguments and parsed flags.
-func (c *Command) Action(fn func(ctx *Context)) *Command {
+func (c *Command) WithAction(fn func(ctx *Context) error) *Command {
 	c.actionF = fn
 	return c
 }
@@ -136,4 +136,4 @@ func (c *Command) Parent() CommandInfo {
 	return c.parent
 }
 
-func (c *Command) action() func(ctx *Context) { return c.actionF }
+func (c *Command) action() func(ctx *Context) error { return c.actionF }

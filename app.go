@@ -102,9 +102,9 @@ func (a *App) WithStderr(err io.Writer) *App {
 	return a
 }
 
-// Action assigns the default action to be executed when the application is run
+// WithAction assigns the default action to be executed when the application is run
 // without specifying any command.
-func (a *App) Action(fn func(ctx *Context)) *App {
+func (a *App) WithAction(fn func(ctx *Context) error) *App {
 	a.root.actionF = fn
 	return a
 }

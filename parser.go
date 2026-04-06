@@ -15,7 +15,10 @@ func (a *App) handler(args []string) int {
 		return code
 	}
 
-	a.run(ctx)
+	if code = a.run(ctx); code != stateContinue {
+		return code
+	}
+
 	return exitOK
 }
 
@@ -312,8 +315,13 @@ func (a *App) validate(ctx *Context) int {
 	return stateContinue
 }
 
-func (a *App) run(ctx *Context) {
+func (a *App) run(ctx *Context) int {
 	if ctx.command.action() != nil {
-		ctx.command.action()(ctx)
+		if err := ctx.command.action()(ctx); err != nil {
+			fmt.Fprint(a.stderr, err)
+			return exitError
+		}
 	}
+
+	return stateContinue
 }
