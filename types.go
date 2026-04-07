@@ -27,8 +27,11 @@ func (c *Context) Args() []string { return c.args }
 // Flags returns all parsed flags as key-value pairs.
 func (c *Context) Flags() map[string]FlagInfo { return c.flags }
 
+// Flag returns the flag with the given name.
+func (c *Context) Flag(name string) FlagInfo { return c.flags[name] }
+
 // Lookup returns the FlagValue interface of the flag with the given name.
-func (c *Context) Lookup(name string) FlagValue { return c.flags[name].Value() }
+func (c *Context) Lookup(name string) FlagValue { return c.Flag(name).Value() }
 
 // String returns the named flag as string.
 // It panics if not found or invalid type.
