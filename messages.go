@@ -1,11 +1,16 @@
 package gocli
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"io"
+)
 
 type messageType int
 
 const (
-	MsgHelp messageType = iota
+	msgNone messageType = iota
+	MsgHelp
 	MsgCommandHelp
 	MsgVersion
 	MsgNoCommand
@@ -21,14 +26,33 @@ const (
 )
 
 // CLIMessage represents a message object used by the CLI.
-// It includes an exit code, message, message type, and optional command pointer,
-// as well as extra metadata.
+// It includes an exit code, message, message type, optional command pointer,
+// error, writer, and extra metadata.
 type CLIMessage struct {
 	code        int
 	message     string
 	messageType messageType
 	command     CommandInfo
+	err         error
+	writer      io.Writer
 	data        map[string]string
+}
+
+// Exit creates a new CLI message with the provided message and code.
+func Exit(message string, code int) *CLIMessage {
+	return &CLIMessage{message: message, code: code}
+}
+
+// WithWriter sets the writer for the message.
+func (m *CLIMessage) WithWriter(writer io.Writer) *CLIMessage {
+	m.writer = writer
+	return m
+}
+
+// Error implements the error interface for the message.
+// It returns the underlying error message string.
+func (m *CLIMessage) Error() string {
+	return m.message
 }
 
 // Code returns the exit code associated with the event.
@@ -45,6 +69,11 @@ func (m *CLIMessage) Command() CommandInfo { return m.command }
 
 // Data returns a map of metadata related to the event.
 func (m *CLIMessage) Data() map[string]string { return m.data }
+
+// Writer returns the writer of the message.
+func (m *CLIMessage) Writer() io.Writer {
+	return m.writer
+}
 
 // MessageContext holds the application instance
 // and message object providing details about the event.
@@ -112,52 +141,83 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd CommandInfo, da
 	}
 }
 
-func (a *App) stop(messageType messageType, cmd CommandInfo, data map[string]string) int {
-	message, code := a.getMessageAndExitCode(messageType, cmd, data)
-
-	cliMsg := &CLIMessage{
-		code:        code,
-		messageType: messageType,
-		command:     cmd,
-		message:     message,
-		data:        data,
-	}
-
-	msgCtx := MessageContext{
-		app: a,
-		msg: cliMsg,
-	}
-
-	return a.displayMessage(msgCtx)
-}
-
-func (a *App) displayMessage(msgCtx MessageContext) int {
+func (a *App) exit(message *CLIMessage) int {
 	var msg string
-	isCustom := false
+	var err = message.err
+	code := message.code
 	out := a.Stderr()
 
-	if a.customMessagesMap != nil {
-		if fn, ok := a.customMessagesMap[msgCtx.msg.messageType]; ok {
-			msg = fn(msgCtx) // override the default message
-			isCustom = true
+	if message.messageType != msgNone {
+		m, c := a.getMessageAndExitCode(
+			message.messageType,
+			message.command,
+			message.data,
+		)
+
+		if code == 0 {
+			code = c
+		}
+
+		msg = m
+
+		// override the default message
+		if a.customMessagesMap != nil {
+			if fn, ok := a.customMessagesMap[message.messageType]; ok {
+				err = fn(MessageContext{
+					app: a,
+					msg: &CLIMessage{
+						code:        code,
+						messageType: message.messageType,
+						command:     message.command,
+						message:     msg,
+						data:        message.data,
+					},
+				})
+			}
 		}
 	}
 
-	if !isCustom {
-		msg = msgCtx.msg.message
+	if err != nil {
+		msg = err.Error()
 	}
 
-	if msgCtx.msg.code == exitOK {
+	if code == exitOK {
 		out = a.Stdout()
 	}
 
+	var cm *CLIMessage
+	if errors.As(err, &cm) {
+		code = cm.code
+
+		if cm.writer != nil {
+			out = cm.writer
+		} else if code == exitOK {
+			out = a.Stdout()
+		}
+	}
+
 	fmt.Fprint(out, msg)
-	return msgCtx.msg.code
+	return code
+}
+
+func (a *App) cliExit(messageType messageType, command CommandInfo, data map[string]string) int {
+	return a.exit(&CLIMessage{
+		messageType: messageType,
+		command:     command,
+		data:        data,
+	})
+}
+
+func (a *App) appExit(err error, code int) int {
+	return a.exit(&CLIMessage{
+		err:  err,
+		code: code,
+	})
 }
 
 // HandleMessage registers a custom message handler for a specific message type.
 // The handler function runs whenever an event of the given type occurs.
-func (a *App) HandleMessage(messageType messageType, fn func(msgCtx MessageContext) string) *App {
+func (a *App) HandleMessage(messageType messageType, fn func(msgCtx MessageContext) error) *App {
 	a.customMessagesMap[messageType] = fn
 	return a
 }

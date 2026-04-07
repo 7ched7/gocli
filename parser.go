@@ -84,11 +84,11 @@ func (a *App) parse(args []string) (*Context, int) {
 	cmd := ctx.command
 
 	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 {
-		return nil, a.stop(MsgNoCommand, cmd, nil)
+		return nil, a.cliExit(MsgNoCommand, cmd, nil)
 	}
 
 	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
-		return nil, a.stop(MsgSubcommandRequired, cmd, map[string]string{
+		return nil, a.cliExit(MsgSubcommandRequired, cmd, map[string]string{
 			"command": cmd.Name(),
 		})
 	}
@@ -113,7 +113,7 @@ func (a *App) handleArgument(ctx *Context, arg string) int {
 	if !isCmd {
 		if ((cmd == a.root && cmd.action() == nil) || cmd != a.root && len(cmd.Subcommands()) > 0) &&
 			cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
-			return a.stop(MsgUnknownCommand, cmd, map[string]string{
+			return a.cliExit(MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
@@ -153,7 +153,7 @@ func (a *App) findFlag(cmd CommandInfo, flagName string) (FlagInfo, int) {
 	}
 
 	if matchedFlag == nil {
-		return nil, a.stop(MsgInvalidFlag, cmd, map[string]string{
+		return nil, a.cliExit(MsgInvalidFlag, cmd, map[string]string{
 			"flag": flagName,
 		})
 	}
@@ -183,7 +183,7 @@ func (a *App) handleShortFlag(ctx *Context, arg string, args []string, i int) (i
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.stop(MsgFlagValueMissing, ctx.command, map[string]string{
+				return i, a.cliExit(MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": matchedFlag.Alias(),
 				})
 			}
@@ -232,7 +232,7 @@ func (a *App) handleLongFlag(ctx *Context, arg string, args []string, i int) (in
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.stop(MsgFlagValueMissing, ctx.command, map[string]string{
+				return i, a.cliExit(MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": matchedFlag.Name(),
 				})
 			}
@@ -248,8 +248,7 @@ func (a *App) handleLongFlag(ctx *Context, arg string, args []string, i int) (in
 
 func (a *App) handleFlagValue(flags map[string]FlagInfo, matchedFlag FlagInfo, flagValue string) int {
 	if err := matchedFlag.Value().Set(flagValue); err != nil {
-		fmt.Fprint(a.stderr, err)
-		return exitUsage
+		return a.appExit(err, exitUsage)
 	}
 
 	matchedFlag.set()
@@ -262,13 +261,13 @@ func (a *App) handleHelpAndVersion(arg string, cmd CommandInfo) int {
 	switch arg {
 	case "--help", "-h":
 		if cmd == a.root {
-			return a.stop(MsgHelp, cmd, nil)
+			return a.cliExit(MsgHelp, cmd, nil)
 		} else {
-			return a.stop(MsgCommandHelp, cmd, nil)
+			return a.cliExit(MsgCommandHelp, cmd, nil)
 		}
 	case "--version":
 		if cmd == a.root && a.version != "" {
-			return a.stop(MsgVersion, cmd, nil)
+			return a.cliExit(MsgVersion, cmd, nil)
 		}
 	}
 
@@ -280,24 +279,24 @@ func (a *App) validate(ctx *Context) int {
 	cmd := ctx.command
 
 	if cmd.MinArg() == 0 && cmd.MaxArg() == 0 && nargs > 0 {
-		return a.stop(MsgUnexpectedArgument, cmd, map[string]string{
+		return a.cliExit(MsgUnexpectedArgument, cmd, map[string]string{
 			"argument": ctx.args[0],
 		})
 	}
 	if cmd.MinArg() > 0 && nargs < cmd.MinArg() {
-		return a.stop(MsgTooFewArguments, cmd, map[string]string{
+		return a.cliExit(MsgTooFewArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
 	if cmd.MaxArg() > 0 && nargs > cmd.MaxArg() {
-		return a.stop(MsgTooManyArguments, cmd, map[string]string{
+		return a.cliExit(MsgTooManyArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
 
 	for _, f := range ctx.flags {
 		if f.IsRequired() && !f.IsSet() {
-			return a.stop(MsgFlagRequired, cmd, map[string]string{
+			return a.cliExit(MsgFlagRequired, cmd, map[string]string{
 				"flag": f.Name(),
 			})
 		}
@@ -306,8 +305,7 @@ func (a *App) validate(ctx *Context) int {
 	for _, f := range ctx.flags {
 		if f.IsSet() {
 			if err := f.Validate(ctx); err != nil {
-				fmt.Fprint(a.stderr, err)
-				return exitUsage
+				return a.appExit(err, exitUsage)
 			}
 		}
 	}
@@ -318,8 +316,7 @@ func (a *App) validate(ctx *Context) int {
 func (a *App) run(ctx *Context) int {
 	if ctx.command.action() != nil {
 		if err := ctx.command.action()(ctx); err != nil {
-			fmt.Fprint(a.stderr, err)
-			return exitError
+			return a.appExit(err, exitError)
 		}
 	}
 

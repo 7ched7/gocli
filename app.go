@@ -12,7 +12,7 @@ type App struct {
 	version           string
 	stdout            io.Writer
 	stderr            io.Writer
-	customMessagesMap map[messageType]func(msgCtx MessageContext) string
+	customMessagesMap map[messageType]func(msgCtx MessageContext) error
 }
 
 // AppInfo provides access to application metadata and behaviour.
@@ -60,7 +60,7 @@ func NewApp(name string) *App {
 		},
 		stdout:            os.Stdout,
 		stderr:            os.Stderr,
-		customMessagesMap: map[messageType]func(msgCtx MessageContext) string{},
+		customMessagesMap: map[messageType]func(msgCtx MessageContext) error{},
 	}
 }
 
