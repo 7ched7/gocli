@@ -1,5 +1,13 @@
 package gocli
 
+type flagRole int
+
+const (
+	flagStandard flagRole = iota
+	flagHelp
+	flagVersion
+)
+
 // Flag represents a single flag for the CLI.
 // It includes flag name, alias, parsed value, description,
 // metavariable, and an optional validator function.
@@ -13,6 +21,7 @@ type Flag[T any] struct {
 	metavar      string
 	validator    func(ctx *Context, value T) error
 	isSet        bool
+	r            flagRole
 }
 
 // FlagValue defines an interface for all flag values.
@@ -35,6 +44,8 @@ type FlagInfo interface {
 	IsSet() bool                 // IsSet returns whether the flag is set.
 
 	set()
+	setRole(role flagRole)
+	role() flagRole
 }
 
 // NewStringFlag creates a new string flag with the given name and default value.
@@ -242,4 +253,6 @@ func (f *Flag[T]) Validate(ctx *Context) error {
 // IsSet returns whether the flag is set.
 func (f *Flag[T]) IsSet() bool { return f.isSet }
 
-func (f *Flag[T]) set() { f.isSet = true }
+func (f *Flag[T]) set()               { f.isSet = true }
+func (f *Flag[T]) setRole(r flagRole) { f.r = r }
+func (f *Flag[T]) role() flagRole     { return f.r }

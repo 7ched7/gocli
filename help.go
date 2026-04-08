@@ -20,17 +20,7 @@ func (a *App) Help() string {
 	var sb strings.Builder
 
 	cmdRows := commandsToRows(a.root.subcommands)
-	flagRows := flagsToRows(a.root.flags)
-
-	flagRows = append(flagRows,
-		row{left: "-h, --help", right: "Show help", leftWidth: 10},
-	)
-
-	if a.version != "" {
-		flagRows = append(flagRows,
-			row{left: "    --version", right: "Show version", leftWidth: 13},
-		)
-	}
+	flagRows := flagsToRows(a.getFlags(a.root))
 
 	// Usage
 	a.writeUsage(&sb, a.root)
@@ -58,7 +48,7 @@ func (a *App) CommandHelp(cmd CommandInfo) string {
 	var sb strings.Builder
 
 	cmdRows := commandsToRows(cmd.Subcommands())
-	flagRows := flagsToRows(cmd.Flags())
+	flagRows := flagsToRows(a.getFlags(cmd))
 
 	// Usage
 	a.writeUsage(&sb, cmd)
@@ -75,39 +65,19 @@ func (a *App) CommandHelp(cmd CommandInfo) string {
 	return sb.String()
 }
 
-func wrap(text string, indent int, leftExceeds bool) string {
-	words := strings.Fields(strings.TrimSpace(text))
-	if len(words) == 0 {
-		return ""
+func (a *App) getFlags(cmd CommandInfo) []FlagInfo {
+	displayFlags := make([]FlagInfo, 0, len(cmd.Flags()))
+	displayFlags = append(displayFlags, cmd.Flags()...)
+
+	if a.config.HelpFlag != nil {
+		displayFlags = append(displayFlags, a.config.HelpFlag)
 	}
 
-	var result strings.Builder
-	var currLine strings.Builder
-
-	if leftExceeds {
-		result.WriteString("\n" + strings.Repeat(" ", indent))
+	if cmd == a.root && a.config.VersionFlag != nil && a.version != "" {
+		displayFlags = append(displayFlags, a.config.VersionFlag)
 	}
 
-	for _, word := range words {
-		// Start a new line if it exceeds width
-		if currLine.Len()+len(word)+1 > tWidth-indent {
-			result.WriteString(currLine.String() + "\n" + strings.Repeat(" ", indent))
-			currLine.Reset()
-		}
-
-		if currLine.Len() > 0 {
-			currLine.WriteString(" ")
-		}
-
-		currLine.WriteString(word)
-	}
-
-	result.WriteString(currLine.String())
-	return result.String()
-}
-
-func writeRow(left, right string, leftExceeds bool, maxKeyLen int) string {
-	return fmt.Sprintf("  %-*s  %s\n", maxKeyLen, left, wrap(right, maxKeyLen+4, leftExceeds))
+	return displayFlags
 }
 
 func commandsToRows(cmds []CommandInfo) []row {
@@ -153,17 +123,39 @@ func flagsToRows(flags []FlagInfo) []row {
 	return rows
 }
 
-func getMaxKeyLen(rows []row) int {
-	max := 0
-	for _, r := range rows {
-		if r.leftWidth > max {
-			max = r.leftWidth
+func wrap(text string, indent int, leftExceeds bool) string {
+	words := strings.Fields(strings.TrimSpace(text))
+	if len(words) == 0 {
+		return ""
+	}
+
+	var result strings.Builder
+	var currLine strings.Builder
+
+	if leftExceeds {
+		result.WriteString("\n" + strings.Repeat(" ", indent))
+	}
+
+	for _, word := range words {
+		// Start a new line if it exceeds width
+		if currLine.Len()+len(word)+1 > tWidth-indent {
+			result.WriteString(currLine.String() + "\n" + strings.Repeat(" ", indent))
+			currLine.Reset()
 		}
+
+		if currLine.Len() > 0 {
+			currLine.WriteString(" ")
+		}
+
+		currLine.WriteString(word)
 	}
-	if max > maxKeyWidth {
-		max = maxKeyWidth
-	}
-	return max
+
+	result.WriteString(currLine.String())
+	return result.String()
+}
+
+func writeRow(left, right string, leftExceeds bool, maxKeyLen int) string {
+	return fmt.Sprintf("  %-*s  %s\n", maxKeyLen, left, wrap(right, maxKeyLen+4, leftExceeds))
 }
 
 func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
@@ -242,6 +234,19 @@ func writeDescription(sb *strings.Builder, text string) {
 		return
 	}
 	sb.WriteString("\n" + wrap(text, 0, false) + "\n")
+}
+
+func getMaxKeyLen(rows []row) int {
+	max := 0
+	for _, r := range rows {
+		if r.leftWidth > max {
+			max = r.leftWidth
+		}
+	}
+	if max > maxKeyWidth {
+		max = maxKeyWidth
+	}
+	return max
 }
 
 func fullPath(c CommandInfo) string {

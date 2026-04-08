@@ -96,6 +96,14 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd CommandInfo, da
 		return cmd.Name()
 	}
 
+	var usageMsg string
+	if a.config.HelpFlag != nil {
+		h := a.config.HelpFlag.Name()
+		if h != "" {
+			usageMsg = fmt.Sprintf("use --%s for usage information.\n", h)
+		}
+	}
+
 	switch messageType {
 	case MsgHelp:
 		return a.Help(), exitOK
@@ -110,13 +118,13 @@ func (a *App) getMessageAndExitCode(messageType messageType, cmd CommandInfo, da
 		return a.Help(), exitUsage
 
 	case MsgUnknownCommand:
-		return fmt.Sprintf("error: unknown command: '%s'\nuse --help for usage information.\n", data["command"]), exitUsage
+		return fmt.Sprintf("error: unknown command: '%s'\n%s", data["command"], usageMsg), exitUsage
 
 	case MsgSubcommandRequired:
-		return fmt.Sprintf("error: a subcommand is required for the command: '%s'\nuse --help for usage information.\n", data["command"]), exitUsage
+		return fmt.Sprintf("error: a subcommand is required for the command: '%s'\n%s", data["command"], usageMsg), exitUsage
 
 	case MsgInvalidFlag:
-		return fmt.Sprintf("error: invalid flag: '%s'\nuse --help for usage information.\n", data["flag"]), exitUsage
+		return fmt.Sprintf("error: invalid flag: '%s'\n%s", data["flag"], usageMsg), exitUsage
 
 	case MsgFlagValueMissing:
 		return fmt.Sprintf("error: a value is required for the flag: '%s'\n", data["flag"]), exitUsage
@@ -161,8 +169,8 @@ func (a *App) exit(message *CLIMessage) int {
 		msg = m
 
 		// override the default message
-		if a.customMessagesMap != nil {
-			if fn, ok := a.customMessagesMap[message.messageType]; ok {
+		if a.config.customMessagesMap != nil {
+			if fn, ok := a.config.customMessagesMap[message.messageType]; ok {
 				err = fn(MessageContext{
 					app: a,
 					msg: &CLIMessage{
@@ -218,6 +226,6 @@ func (a *App) appExit(err error, code int) int {
 // HandleMessage registers a custom message handler for a specific message type.
 // The handler function runs whenever an event of the given type occurs.
 func (a *App) HandleMessage(messageType messageType, fn func(msgCtx MessageContext) error) *App {
-	a.customMessagesMap[messageType] = fn
+	a.config.customMessagesMap[messageType] = fn
 	return a
 }

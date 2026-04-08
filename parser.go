@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+type parser struct {
+	positionalOnly   bool
+	helpRequested    bool
+	versionRequested bool
+}
+
 func (a *App) handler(args []string) int {
 	ctx, code := a.parse(args)
 	if code != stateContinue {
@@ -23,14 +29,14 @@ func (a *App) handler(args []string) int {
 }
 
 func (a *App) parse(args []string) (*Context, int) {
+	p := &parser{}
+
 	ctx := &Context{
 		app:     a,
 		command: a.root,
 		args:    []string{},
 		flags:   map[string]FlagInfo{},
 	}
-
-	positionalOnly := false
 
 	// Global flag values mapping
 	for _, f := range ctx.command.Flags() {
@@ -40,14 +46,14 @@ func (a *App) parse(args []string) (*Context, int) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 
-		if positionalOnly {
+		if p.positionalOnly {
 			ctx.args = append(ctx.args, arg)
 			continue
 		}
 
 		// Enable positional-only mode
 		if arg == "--" {
-			positionalOnly = true
+			p.positionalOnly = true
 			continue
 		}
 
@@ -59,22 +65,20 @@ func (a *App) parse(args []string) (*Context, int) {
 			if code = a.handleArgument(ctx, arg); code != stateContinue {
 				return nil, code
 			}
-
 			continue
 		}
 
-		code = a.handleHelpAndVersion(arg, ctx.command)
+		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
+			newi, code = a.handleShortFlag(p, ctx, arg, args, i)
+		} else {
+			newi, code = a.handleLongFlag(p, ctx, arg, args, i)
+		}
+
 		if code != stateContinue {
 			return nil, code
 		}
 
-		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
-			newi, code = a.handleShortFlag(ctx, arg, args, i)
-		} else {
-			newi, code = a.handleLongFlag(ctx, arg, args, i)
-		}
-
-		if code != stateContinue {
+		if code := a.handleHelpAndVersion(p, ctx.command); code != stateContinue {
 			return nil, code
 		}
 
@@ -131,21 +135,46 @@ func (a *App) handleArgument(ctx *Context, arg string) int {
 	return stateContinue
 }
 
-func (a *App) findFlag(cmd CommandInfo, flagName string) (FlagInfo, int) {
+func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, int) {
 	var matchedFlag FlagInfo
 
-	if cmd != a.root {
+	matches := func(flagName string, f FlagInfo) bool {
+		if f != nil {
+			return flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias())
+		}
+		return false
+	}
+
+	// Help flag
+	f := a.config.HelpFlag
+	if f != nil && matches(flagName, f) {
+		matchedFlag = f
+		p.helpRequested = true
+	}
+
+	// Version flag
+	if matchedFlag == nil && cmd == a.root && a.version != "" {
+		f := a.config.VersionFlag
+		if f != nil && matches(flagName, f) {
+			matchedFlag = f
+			p.versionRequested = true
+		}
+	}
+
+	// Local flags
+	if matchedFlag == nil && cmd != a.root {
 		for _, f := range cmd.Flags() {
-			if flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias()) {
+			if matches(flagName, f) {
 				matchedFlag = f
 				break
 			}
 		}
 	}
 
+	// Global flags
 	if matchedFlag == nil {
 		for _, f := range a.root.flags {
-			if flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias()) {
+			if matches(flagName, f) {
 				matchedFlag = f
 				break
 			}
@@ -161,12 +190,12 @@ func (a *App) findFlag(cmd CommandInfo, flagName string) (FlagInfo, int) {
 	return matchedFlag, stateContinue
 }
 
-func (a *App) handleShortFlag(ctx *Context, arg string, args []string, i int) (int, int) {
+func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, int) {
 	var matchedFlag FlagInfo
 	var code int
 
 	for j, f := range arg[1:] {
-		matchedFlag, code = a.findFlag(ctx.command, "-"+string(f))
+		matchedFlag, code = a.findFlag(p, ctx.command, "-"+string(f))
 		if code != stateContinue {
 			return i, code
 		}
@@ -203,7 +232,7 @@ func (a *App) handleShortFlag(ctx *Context, arg string, args []string, i int) (i
 	return i, stateContinue
 }
 
-func (a *App) handleLongFlag(ctx *Context, arg string, args []string, i int) (int, int) {
+func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, int) {
 	var flagName string
 	var flagValue string
 	hasEqualSign := strings.Contains(arg, "=")
@@ -216,7 +245,7 @@ func (a *App) handleLongFlag(ctx *Context, arg string, args []string, i int) (in
 		flagName = arg
 	}
 
-	matchedFlag, code := a.findFlag(ctx.command, flagName)
+	matchedFlag, code := a.findFlag(p, ctx.command, flagName)
 	if code != stateContinue {
 		return i, code
 	}
@@ -251,23 +280,26 @@ func (a *App) handleFlagValue(flags map[string]FlagInfo, matchedFlag FlagInfo, f
 		return a.appExit(err, exitUsage)
 	}
 
-	matchedFlag.set()
-	flags[matchedFlag.Name()] = matchedFlag
+	if matchedFlag.role() != flagHelp && matchedFlag.role() != flagVersion {
+		matchedFlag.set()
+		flags[matchedFlag.Name()] = matchedFlag
+	}
 
 	return stateContinue
 }
 
-func (a *App) handleHelpAndVersion(arg string, cmd CommandInfo) int {
-	switch arg {
-	case "--help", "-h":
-		if cmd == a.root {
+func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) int {
+	if cmd == a.root {
+		if p.helpRequested {
 			return a.cliExit(MsgHelp, cmd, nil)
-		} else {
-			return a.cliExit(MsgCommandHelp, cmd, nil)
 		}
-	case "--version":
-		if cmd == a.root && a.version != "" {
+
+		if p.versionRequested && a.config.VersionFlag != nil && a.version != "" {
 			return a.cliExit(MsgVersion, cmd, nil)
+		}
+	} else {
+		if p.helpRequested {
+			return a.cliExit(MsgCommandHelp, cmd, nil)
 		}
 	}
 

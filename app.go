@@ -8,11 +8,11 @@ import (
 // App represents the main CLI application.
 // It manages application commands, global flags, configurations, and I/O streams.
 type App struct {
-	root              *Command
-	version           string
-	stdout            io.Writer
-	stderr            io.Writer
-	customMessagesMap map[messageType]func(msgCtx MessageContext) error
+	root    *Command
+	version string
+	config  *AppConfig
+	stdout  io.Writer
+	stderr  io.Writer
 }
 
 // AppInfo provides access to application metadata and behaviour.
@@ -24,6 +24,7 @@ type AppInfo interface {
 	GlobalFlags() []FlagInfo            // GlobalFlags returns all registered global flags.
 	MinArg() int                        // MinArg returns the minimum number of positional arguments.
 	MaxArg() int                        // MaxArg returns the maximum number of positional arguments.
+	Config() *AppConfig                 // Config returns the configuration settings of the application.
 	Stdout() io.Writer                  // Stdout returns the output writer used for standard output.
 	Stderr() io.Writer                  // Stderr returns the output writer used for standard error.
 	Help() string                       // Help generates and returns the global help menu for the application.
@@ -58,9 +59,9 @@ func NewApp(name string) *App {
 			subcommands: []CommandInfo{},
 			flags:       []FlagInfo{},
 		},
-		stdout:            os.Stdout,
-		stderr:            os.Stderr,
-		customMessagesMap: map[messageType]func(msgCtx MessageContext) error{},
+		config: DefaultAppConfig(),
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
 }
 
@@ -87,6 +88,27 @@ func (a *App) WithMinArg(min int) *App {
 // WithMaxArg sets the maximum number of positional arguments allowed for the application.
 func (a *App) WithMaxArg(max int) *App {
 	a.root.maxArg = max
+	return a
+}
+
+// WithConfig sets the configuration settings for the application.
+func (a *App) WithConfig(config *AppConfig) *App {
+	if config == nil {
+		config = DefaultAppConfig()
+	}
+	config.customMessagesMap = make(map[messageType]func(msgCtx MessageContext) error)
+
+	if config.HelpFlag == nil {
+		config.HelpFlag = config.DefaultHelpFlag()
+	}
+	config.HelpFlag.setRole(flagHelp)
+
+	if config.VersionFlag == nil {
+		config.VersionFlag = config.DefaultVersionFlag()
+	}
+	config.VersionFlag.setRole(flagVersion)
+
+	a.config = config
 	return a
 }
 
@@ -144,6 +166,9 @@ func (a *App) MinArg() int { return a.root.minArg }
 // MaxArg returns the maximum number of positional arguments allowed for the application.
 // If not set, it returns 0.
 func (a *App) MaxArg() int { return a.root.maxArg }
+
+// Config returns the configuration settings of the application.
+func (a *App) Config() *AppConfig { return a.config }
 
 // Stdout returns the output writer used for standard output.
 // If nil, it falls back to os.Stdout.
