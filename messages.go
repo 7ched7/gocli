@@ -169,8 +169,8 @@ func (a *App) exit(message *CLIMessage) int {
 		msg = m
 
 		// override the default message
-		if a.config.customMessagesMap != nil {
-			if fn, ok := a.config.customMessagesMap[message.messageType]; ok {
+		if a.config.Messages != nil {
+			if fn, ok := a.config.Messages[message.messageType]; ok {
 				err = fn(MessageContext{
 					app: a,
 					msg: &CLIMessage{
@@ -221,11 +221,4 @@ func (a *App) appExit(err error, code int) int {
 		err:  err,
 		code: code,
 	})
-}
-
-// HandleMessage registers a custom message handler for a specific message type.
-// The handler function runs whenever an event of the given type occurs.
-func (a *App) HandleMessage(messageType messageType, fn func(msgCtx MessageContext) error) *App {
-	a.config.customMessagesMap[messageType] = fn
-	return a
 }

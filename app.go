@@ -10,7 +10,7 @@ import (
 type App struct {
 	root    *Command
 	version string
-	config  *AppConfig
+	config  AppConfig
 	stdout  io.Writer
 	stderr  io.Writer
 }
@@ -24,7 +24,7 @@ type AppInfo interface {
 	GlobalFlags() []FlagInfo            // GlobalFlags returns all registered global flags.
 	MinArg() int                        // MinArg returns the minimum number of positional arguments.
 	MaxArg() int                        // MaxArg returns the maximum number of positional arguments.
-	Config() *AppConfig                 // Config returns the configuration settings of the application.
+	Config() AppConfig                  // Config returns the configuration settings of the application.
 	Stdout() io.Writer                  // Stdout returns the output writer used for standard output.
 	Stderr() io.Writer                  // Stderr returns the output writer used for standard error.
 	Help() string                       // Help generates and returns the global help menu for the application.
@@ -92,12 +92,7 @@ func (a *App) WithMaxArg(max int) *App {
 }
 
 // WithConfig sets the configuration settings for the application.
-func (a *App) WithConfig(config *AppConfig) *App {
-	if config == nil {
-		config = DefaultAppConfig()
-	}
-	config.customMessagesMap = make(map[messageType]func(msgCtx MessageContext) error)
-
+func (a *App) WithConfig(config AppConfig) *App {
 	if config.HelpFlag == nil {
 		config.HelpFlag = config.DefaultHelpFlag()
 	}
@@ -107,6 +102,10 @@ func (a *App) WithConfig(config *AppConfig) *App {
 		config.VersionFlag = config.DefaultVersionFlag()
 	}
 	config.VersionFlag.setRole(flagVersion)
+
+	if config.Messages == nil {
+		config.Messages = make(MessagesMap)
+	}
 
 	a.config = config
 	return a
@@ -168,7 +167,7 @@ func (a *App) MinArg() int { return a.root.minArg }
 func (a *App) MaxArg() int { return a.root.maxArg }
 
 // Config returns the configuration settings of the application.
-func (a *App) Config() *AppConfig { return a.config }
+func (a *App) Config() AppConfig { return a.config }
 
 // Stdout returns the output writer used for standard output.
 // If nil, it falls back to os.Stdout.
