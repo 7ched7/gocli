@@ -36,7 +36,7 @@ func (a *App) Help() string {
 
 	// Footer
 	if len(a.root.subcommands) > 0 {
-		sb.WriteString("\nUse \"" + a.root.name + " <command> --help\" for more information about a command.\n")
+		a.writeFooter(&sb)
 	}
 
 	return sb.String()
@@ -98,14 +98,28 @@ func flagsToRows(flags []FlagInfo) []row {
 	rows := make([]row, 0)
 
 	for _, f := range flags {
-		left := ""
-		if alias := f.Alias(); alias != "" {
-			left = fmt.Sprintf("-%s, ", alias)
-		} else {
-			left = "    "
+		if f.Name() == "" && f.Alias() == "" {
+			continue
 		}
 
-		left += "--" + f.Name()
+		left := ""
+		if alias := f.Alias(); alias != "" {
+			left = "-" + alias
+
+			if f.Name() != "" {
+				left += ", "
+			}
+		} else {
+			left = "  "
+
+			if f.Name() != "" {
+				left += "  "
+			}
+		}
+
+		if name := f.Name(); name != "" {
+			left += "--" + f.Name()
+		}
 
 		switch f.Value().Get().(type) {
 		case bool:
@@ -217,6 +231,13 @@ func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
 	sb.WriteString("\n")
 }
 
+func writeDescription(sb *strings.Builder, text string) {
+	if text == "" {
+		return
+	}
+	sb.WriteString("\n" + wrap(text, 0, false) + "\n")
+}
+
 func writeSection(sb *strings.Builder, title string, rows []row) {
 	if len(rows) == 0 {
 		return
@@ -229,11 +250,15 @@ func writeSection(sb *strings.Builder, title string, rows []row) {
 	}
 }
 
-func writeDescription(sb *strings.Builder, text string) {
-	if text == "" {
-		return
+func (a *App) writeFooter(sb *strings.Builder) {
+	var footer string
+	if a.config.HelpFlag != nil {
+		h := a.config.HelpFlag.Name()
+		if h != "" {
+			footer = fmt.Sprintf("\nUse \"%s <command> --%s\" for more information about a command.\n", a.root.name, h)
+		}
 	}
-	sb.WriteString("\n" + wrap(text, 0, false) + "\n")
+	sb.WriteString(footer)
 }
 
 func getMaxKeyLen(rows []row) int {
