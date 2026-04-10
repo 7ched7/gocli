@@ -68,6 +68,7 @@ func NewApp(name string) *App {
 // WithVersion sets the version for the application.
 // This value is displayed when the version flag is used.
 func (a *App) WithVersion(version string) *App {
+	a.config.VersionFlag = DefaultVersionFlag()
 	a.version = version
 	return a
 }
