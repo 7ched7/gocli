@@ -218,7 +218,7 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 			}
 		}
 
-		if code := a.handleFlagValue(ctx.flags, matchedFlag, flagValue); code != stateContinue {
+		if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != stateContinue {
 			return i, code
 		}
 
@@ -268,24 +268,42 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 		}
 	}
 
-	if code := a.handleFlagValue(ctx.flags, matchedFlag, flagValue); code != stateContinue {
+	if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != stateContinue {
 		return i, code
 	}
 
 	return i, stateContinue
 }
 
-func (a *App) handleFlagValue(flags map[string]FlagInfo, matchedFlag FlagInfo, flagValue string) int {
+func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue string) int {
 	if err := matchedFlag.Value().Set(flagValue); err != nil {
-		return a.appExit(err, exitUsage)
+		return a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
 	}
 
 	if matchedFlag.role() != flagHelp && matchedFlag.role() != flagVersion {
 		matchedFlag.set()
-		flags[matchedFlag.Name()] = matchedFlag
+		ctx.flags[matchedFlag.Name()] = matchedFlag
 	}
 
 	return stateContinue
+}
+
+func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagValue string, err error) int {
+	errInfo := map[string]string{
+		"flag":  matchedFlag.Name(),
+		"value": flagValue,
+	}
+
+	switch matchedFlag.Value().(type) {
+	case *typeInt:
+		return a.cliExit(MsgIntParseError, cmd, errInfo)
+	case *typeFloat64:
+		return a.cliExit(MsgFloat64ParseError, cmd, errInfo)
+	case *typeBool:
+		return a.cliExit(MsgBoolParseError, cmd, errInfo)
+	default:
+		return a.appExit(err, exitUsage)
+	}
 }
 
 func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) int {

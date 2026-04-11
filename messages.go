@@ -18,6 +18,9 @@ const (
 	MsgInvalidFlag
 	MsgFlagValueMissing
 	MsgFlagRequired
+	MsgIntParseError
+	MsgFloat64ParseError
+	MsgBoolParseError
 	MsgUnexpectedArgument
 	MsgTooFewArguments
 	MsgTooManyArguments
@@ -32,11 +35,6 @@ type CLIMessage struct {
 	messageType messageType
 	command     CommandInfo
 	data        map[string]string
-}
-
-// Exit creates a new CLI message with the provided message and code.
-func Exit(message string, code int) *CLIMessage {
-	return &CLIMessage{message: message, code: code}
 }
 
 // Error implements the error interface for the message.
@@ -59,6 +57,11 @@ func (m *CLIMessage) Command() CommandInfo { return m.command }
 
 // Data returns a map of metadata related to the event.
 func (m *CLIMessage) Data() map[string]string { return m.data }
+
+// Exit creates a new CLI message with the provided message and code.
+func Exit(message string, code int) *CLIMessage {
+	return &CLIMessage{message: message, code: code}
+}
 
 // MessageContext holds the application instance
 // and message object providing details about the event.
@@ -83,6 +86,9 @@ var defaultMessages MessagesMap = MessagesMap{
 	MsgInvalidFlag:        msgInvalidFlag,
 	MsgFlagValueMissing:   msgFlagValueMissing,
 	MsgFlagRequired:       msgFlagRequired,
+	MsgIntParseError:      msgIntParseError,
+	MsgFloat64ParseError:  msgFloat64ParseError,
+	MsgBoolParseError:     msgBoolParseError,
 	MsgUnexpectedArgument: msgUnexpectedArgument,
 	MsgTooFewArguments:    msgTooFewArguments,
 	MsgTooManyArguments:   msgTooManyArguments,
@@ -148,6 +154,30 @@ func msgFlagRequired(msgCtx MessageContext) error {
 	m := fmt.Sprintf(
 		"error: flag is required: '%s'\n",
 		msgCtx.msg.data["flag"],
+	)
+	return Exit(m, exitUsage)
+}
+
+func msgIntParseError(msgCtx MessageContext) error {
+	m := fmt.Sprintf(
+		"error: invalid value '%v': must be an integer.\n",
+		msgCtx.msg.data["value"],
+	)
+	return Exit(m, exitUsage)
+}
+
+func msgFloat64ParseError(msgCtx MessageContext) error {
+	m := fmt.Sprintf(
+		"error: invalid value '%v': must be a float.\n",
+		msgCtx.msg.data["value"],
+	)
+	return Exit(m, exitUsage)
+}
+
+func msgBoolParseError(msgCtx MessageContext) error {
+	m := fmt.Sprintf(
+		"error: invalid value '%v': must be a bool.\n",
+		msgCtx.msg.data["value"],
 	)
 	return Exit(m, exitUsage)
 }
@@ -253,6 +283,10 @@ func (a *App) exit(cliMsg *CLIMessage) int {
 }
 
 func (a *App) cliExit(messageType messageType, command CommandInfo, data map[string]string) int {
+	if data == nil {
+		data = map[string]string{}
+	}
+
 	return a.exit(&CLIMessage{
 		messageType: messageType,
 		command:     command,
