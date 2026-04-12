@@ -6,7 +6,8 @@ import (
 )
 
 // App represents the main CLI application.
-// It manages application commands, global flags, configurations, and I/O streams.
+// It holds the root command, version information,
+// global configurations, and output writers.
 type App struct {
 	root    *Command
 	version string
@@ -50,8 +51,7 @@ func (a *App) RunWithArgs(args []string) int {
 	return a.handler(args[1:])
 }
 
-// NewApp creates and returns a new App instance
-// with the given name and default settings.
+// NewApp creates and returns a new App instance with the given name.
 func NewApp(name string) *App {
 	return &App{
 		root: &Command{
@@ -74,7 +74,7 @@ func (a *App) WithVersion(version string) *App {
 }
 
 // WithDescription sets the description for the application.
-// The description is shown in application help menu.
+// The description is shown in help menu.
 func (a *App) WithDescription(description string) *App {
 	a.root.long = description
 	return a
@@ -96,13 +96,18 @@ func (a *App) WithMaxArg(max int) *App {
 func (a *App) WithConfig(config AppConfig) *App {
 	if config.HelpFlag != nil {
 		config.HelpFlag.setRole(flagHelp)
+		a.config.HelpFlag = config.HelpFlag
 	}
 
 	if config.VersionFlag != nil {
 		config.VersionFlag.setRole(flagVersion)
+		a.config.VersionFlag = config.VersionFlag
 	}
 
-	a.config = config
+	if config.CustomMessages != nil {
+		a.config.CustomMessages = config.CustomMessages
+	}
+
 	return a
 }
 

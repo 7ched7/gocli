@@ -9,16 +9,15 @@ const (
 )
 
 // Flag represents a single flag for the CLI.
-// It includes flag name, alias, parsed value, description,
-// metavariable, and an optional validator function.
+// It handles parsing, validation, and metadata for the flag.
 type Flag[T any] struct {
 	name         string
 	alias        string
 	value        FlagValue
 	defaultValue any
-	isRequired   bool
 	description  string
 	metavar      string
+	isRequired   bool
 	validator    func(ctx *Context, value T) error
 	isSet        bool
 	r            flagRole

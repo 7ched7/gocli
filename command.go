@@ -1,9 +1,7 @@
 package gocli
 
-// Command represents a single CLI command.
-// It includes command name, alias, descriptions, subcommands,
-// flags, argument constraints, and an action function
-// called when the command is run.
+// Command represents a single CLI command with its metadata,
+// subcommands, flags, argument constraints, and execution logic.
 type Command struct {
 	name        string
 	alias       string
@@ -75,7 +73,6 @@ func (c *Command) WithMaxArg(max int) *Command {
 }
 
 // WithAction assigns the function to be executed when the command is run.
-// The handler receives a Context containing positional arguments and parsed flags.
 func (c *Command) WithAction(fn func(ctx *Context) error) *Command {
 	c.actionF = fn
 	return c

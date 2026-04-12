@@ -88,11 +88,11 @@ func (a *App) parse(args []string) (*Context, int) {
 	cmd := ctx.command
 
 	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 {
-		return nil, a.cliExit(MsgNoCommand, cmd, nil)
+		return nil, a.exitWithMsg(MsgNoCommand, cmd, nil)
 	}
 
 	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
-		return nil, a.cliExit(MsgSubcommandRequired, cmd, map[string]string{
+		return nil, a.exitWithMsg(MsgSubcommandRequired, cmd, map[string]string{
 			"command": cmd.Name(),
 		})
 	}
@@ -117,7 +117,7 @@ func (a *App) handleArgument(ctx *Context, arg string) int {
 	if !isCmd {
 		if ((cmd == a.root && cmd.action() == nil) || cmd != a.root && len(cmd.Subcommands()) > 0) &&
 			cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
-			return a.cliExit(MsgUnknownCommand, cmd, map[string]string{
+			return a.exitWithMsg(MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
@@ -182,7 +182,7 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, i
 	}
 
 	if matchedFlag == nil {
-		return nil, a.cliExit(MsgInvalidFlag, cmd, map[string]string{
+		return nil, a.exitWithMsg(MsgInvalidFlag, cmd, map[string]string{
 			"flag": flagName,
 		})
 	}
@@ -212,7 +212,7 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.cliExit(MsgFlagValueMissing, ctx.command, map[string]string{
+				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": matchedFlag.Alias(),
 				})
 			}
@@ -261,7 +261,7 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.cliExit(MsgFlagValueMissing, ctx.command, map[string]string{
+				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": matchedFlag.Name(),
 				})
 			}
@@ -296,28 +296,28 @@ func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagVa
 
 	switch matchedFlag.Value().(type) {
 	case *typeInt:
-		return a.cliExit(MsgIntParseError, cmd, errInfo)
+		return a.exitWithMsg(MsgIntParseError, cmd, errInfo)
 	case *typeFloat64:
-		return a.cliExit(MsgFloat64ParseError, cmd, errInfo)
+		return a.exitWithMsg(MsgFloat64ParseError, cmd, errInfo)
 	case *typeBool:
-		return a.cliExit(MsgBoolParseError, cmd, errInfo)
+		return a.exitWithMsg(MsgBoolParseError, cmd, errInfo)
 	default:
-		return a.appExit(err, exitUsage)
+		return a.exitWithErr(err, exitUsage)
 	}
 }
 
 func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) int {
 	if cmd == a.root {
 		if p.helpRequested {
-			return a.cliExit(MsgHelp, cmd, nil)
+			return a.exitWithMsg(MsgHelp, cmd, nil)
 		}
 
 		if p.versionRequested && a.config.VersionFlag != nil && a.version != "" {
-			return a.cliExit(MsgVersion, cmd, nil)
+			return a.exitWithMsg(MsgVersion, cmd, nil)
 		}
 	} else {
 		if p.helpRequested {
-			return a.cliExit(MsgCommandHelp, cmd, nil)
+			return a.exitWithMsg(MsgCommandHelp, cmd, nil)
 		}
 	}
 
@@ -329,24 +329,24 @@ func (a *App) validate(ctx *Context) int {
 	cmd := ctx.command
 
 	if cmd.MinArg() == 0 && cmd.MaxArg() == 0 && nargs > 0 {
-		return a.cliExit(MsgUnexpectedArgument, cmd, map[string]string{
+		return a.exitWithMsg(MsgUnexpectedArgument, cmd, map[string]string{
 			"argument": ctx.args[0],
 		})
 	}
 	if cmd.MinArg() > 0 && nargs < cmd.MinArg() {
-		return a.cliExit(MsgTooFewArguments, cmd, map[string]string{
+		return a.exitWithMsg(MsgTooFewArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
 	if cmd.MaxArg() > 0 && nargs > cmd.MaxArg() {
-		return a.cliExit(MsgTooManyArguments, cmd, map[string]string{
+		return a.exitWithMsg(MsgTooManyArguments, cmd, map[string]string{
 			"number": fmt.Sprint(nargs),
 		})
 	}
 
 	for _, f := range ctx.flags {
 		if f.IsRequired() && !f.IsSet() {
-			return a.cliExit(MsgFlagRequired, cmd, map[string]string{
+			return a.exitWithMsg(MsgFlagRequired, cmd, map[string]string{
 				"flag": f.Name(),
 			})
 		}
@@ -355,7 +355,7 @@ func (a *App) validate(ctx *Context) int {
 	for _, f := range ctx.flags {
 		if f.IsSet() {
 			if err := f.Validate(ctx); err != nil {
-				return a.appExit(err, exitUsage)
+				return a.exitWithErr(err, exitUsage)
 			}
 		}
 	}
@@ -366,7 +366,7 @@ func (a *App) validate(ctx *Context) int {
 func (a *App) run(ctx *Context) int {
 	if ctx.command.action() != nil {
 		if err := ctx.command.action()(ctx); err != nil {
-			return a.appExit(err, exitError)
+			return a.exitWithErr(err, exitError)
 		}
 	}
 

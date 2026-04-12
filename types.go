@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-// Context holds positional arguments
-// and parsed flags for a command execution.
+// Context represents the runtime context of a command execution.
+// It includes arguments, parsed flags, and references to the app and command.
 type Context struct {
-	app     AppInfo
-	command CommandInfo
 	args    []string
 	flags   map[string]FlagInfo
+	app     AppInfo
+	command CommandInfo
 }
 
 // App returns the application instance.

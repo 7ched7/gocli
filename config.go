@@ -1,20 +1,21 @@
 package gocli
 
-// AppConfig represents the configuration settings for the application,
-// including default flags and a custom message map.
+// AppConfig represents the configuration settings for the application.
+// It includes default flags and custom messages map.
 type AppConfig struct {
-	HelpFlag    FlagInfo    // Default help flag
-	VersionFlag FlagInfo    // Default version flag
-	Messages    MessagesMap // Custom messages map
+	HelpFlag       FlagInfo    // Default help flag
+	VersionFlag    FlagInfo    // Default version flag
+	CustomMessages MessagesMap // Custom messages map
 }
 
+// MessagesMap maps each message type to its handler function.
 type MessagesMap map[messageType]func(msgCtx MessageContext) error
 
 // DefaultAppConfig creates and returns the default configuration settings.
 func DefaultAppConfig() AppConfig {
 	return AppConfig{
-		HelpFlag: DefaultHelpFlag(),
-		Messages: MessagesMap{},
+		HelpFlag:       DefaultHelpFlag(),
+		CustomMessages: MessagesMap{},
 	}
 }
 

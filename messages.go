@@ -26,7 +26,7 @@ const (
 	MsgTooManyArguments
 )
 
-// CLIMessage represents a message object used by the CLI.
+// CLIMessage represents a structured message used by the CLI.
 // It includes an exit code, message, message type, and optional command pointer,
 // as well as extra metadata.
 type CLIMessage struct {
@@ -63,8 +63,8 @@ func Exit(message string, code int) *CLIMessage {
 	return &CLIMessage{message: message, code: code}
 }
 
-// MessageContext holds the application instance
-// and message object providing details about the event.
+// MessageContext provides the necessary environment data for formatting
+// and handling CLI messages.
 type MessageContext struct {
 	app AppInfo
 	msg *CLIMessage
@@ -73,7 +73,7 @@ type MessageContext struct {
 // App returns the application instance.
 func (m *MessageContext) App() AppInfo { return m.app }
 
-// Msg returns the message object providing details about the event.
+// Msg returns the CLIMessage providing details about the event.
 func (m *MessageContext) Msg() *CLIMessage { return m.msg }
 
 var defaultMessages MessagesMap = MessagesMap{
@@ -267,10 +267,10 @@ func (a *App) exit(cliMsg *CLIMessage) int {
 	}
 
 	// override the default message
-	if a.config.Messages != nil {
+	if a.config.CustomMessages != nil {
 		msgCtx.msg.message = message
 
-		if fn, ok := a.config.Messages[messageType]; fn != nil && ok {
+		if fn, ok := a.config.CustomMessages[messageType]; fn != nil && ok {
 			if err := fn(msgCtx); err != nil {
 				message, code = getMessageInfo(err, code)
 			}
@@ -282,7 +282,7 @@ func (a *App) exit(cliMsg *CLIMessage) int {
 	return code
 }
 
-func (a *App) cliExit(messageType messageType, command CommandInfo, data map[string]string) int {
+func (a *App) exitWithMsg(messageType messageType, command CommandInfo, data map[string]string) int {
 	if data == nil {
 		data = map[string]string{}
 	}
@@ -294,13 +294,13 @@ func (a *App) cliExit(messageType messageType, command CommandInfo, data map[str
 	})
 }
 
-func (a *App) appExit(err error, code int) int {
+func (a *App) exitWithErr(err error, defaultCode int) int {
 	if e, ok := err.(*CLIMessage); ok {
-		code = e.code
+		defaultCode = e.code
 	}
 
 	return a.exit(&CLIMessage{
-		code:        code,
+		code:        defaultCode,
 		message:     err.Error(),
 		messageType: msgNone,
 	})
