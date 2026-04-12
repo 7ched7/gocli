@@ -63,6 +63,12 @@ func Exit(message string, code int) *CLIMessage {
 	return &CLIMessage{message: message, code: code}
 }
 
+// Exitf creates a new CLI message with a formatted message and code.
+func Exitf(format string, code int, a ...any) *CLIMessage {
+	message := fmt.Sprintf(format, a...)
+	return &CLIMessage{message: message, code: code}
+}
+
 // MessageContext provides the necessary environment data for formatting
 // and handling CLI messages.
 type MessageContext struct {
