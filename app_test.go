@@ -45,11 +45,15 @@ func TestApp(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
 			w := io.MultiWriter(io.Discard, &out)
-			app.stdout = w
-			app.stderr = w
 
 			args := append([]string{"mycli"}, tc.args...)
-			code := app.RunWithArgs(args)
+			err := app.RunWithArgs(args)
+
+			code := 0
+			if err != nil {
+				fmt.Fprint(w, err)
+				code = err.(*CLIMessage).code
+			}
 
 			sout := out.String()
 
@@ -68,9 +72,6 @@ func exampleApp() *App {
 
 	app.AddGlobalFlag(NewBoolFlag("verbose", false).WithAlias("v").WithDescription("Verbose output"))
 
-	app.WithStdout(io.Discard)
-	app.WithStderr(io.Discard)
-
 	defaultName := "Guest"
 
 	messageCmd := NewCommand("message").
@@ -83,9 +84,7 @@ func exampleApp() *App {
 		WithAction(func(ctx *Context) error {
 			name := ctx.String("to")
 			text := ctx.Args()[0]
-
-			fmt.Fprintf(app.Stdout(), "Hey %s! %s\n", name, text)
-			return nil
+			return Exitf(0, "Hey %s! %s\n", name, text)
 		})
 
 	mathCmd := NewCommand("math").
@@ -101,8 +100,7 @@ func exampleApp() *App {
 				WithAction(func(ctx *Context) error {
 					a := ctx.Args()[0]
 					b := ctx.Args()[1]
-					fmt.Fprintf(app.Stdout(), "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
-					return nil
+					return Exitf(0, "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
 				}))
 
 	mathCmd.
@@ -115,8 +113,7 @@ func exampleApp() *App {
 					for _, n := range ctx.StringSlice("numbers") {
 						result *= atoi(n)
 					}
-					fmt.Fprint(app.Stdout(), fmt.Sprint(result)+"\n")
-					return nil
+					return Exitf(0, "%d", result)
 				}))
 
 	app.AddCommand(messageCmd)

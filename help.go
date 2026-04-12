@@ -169,7 +169,7 @@ func wrap(text string, indent int, leftExceeds bool) string {
 }
 
 func writeRow(left, right string, leftExceeds bool, maxKeyLen int) string {
-	return fmt.Sprintf("  %-*s  %s\n", maxKeyLen, left, wrap(right, maxKeyLen+4, leftExceeds))
+	return fmt.Sprintf("\n  %-*s  %s", maxKeyLen, left, wrap(right, maxKeyLen+4, leftExceeds))
 }
 
 func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
@@ -227,15 +227,13 @@ func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
 	} else if hasArg {
 		writeArgs()
 	}
-
-	sb.WriteString("\n")
 }
 
 func writeDescription(sb *strings.Builder, text string) {
 	if text == "" {
 		return
 	}
-	sb.WriteString("\n" + wrap(text, 0, false) + "\n")
+	sb.WriteString("\n\n" + wrap(text, 0, false))
 }
 
 func writeSection(sb *strings.Builder, title string, rows []row) {
@@ -243,7 +241,7 @@ func writeSection(sb *strings.Builder, title string, rows []row) {
 		return
 	}
 	maxKeyLen := getMaxKeyLen(rows)
-	sb.WriteString("\n" + title + ":\n")
+	sb.WriteString("\n\n" + title + ":")
 	for _, r := range rows {
 		leftExceeds := r.leftWidth > maxKeyWidth
 		sb.WriteString(writeRow(r.left, r.right, leftExceeds, maxKeyLen))
@@ -255,7 +253,7 @@ func (a *App) writeFooter(sb *strings.Builder) {
 	if a.config.HelpFlag != nil {
 		h := a.config.HelpFlag.Name()
 		if h != "" {
-			footer = fmt.Sprintf("\nUse \"%s <command> --%s\" for more information about a command.\n", a.root.name, h)
+			footer = fmt.Sprintf("\n\nUse \"%s <command> --%s\" for more information about a command.", a.root.name, h)
 		}
 	}
 	sb.WriteString(footer)

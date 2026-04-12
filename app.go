@@ -1,6 +1,7 @@
 package gocli
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
@@ -33,21 +34,39 @@ type AppInfo interface {
 }
 
 const (
-	stateContinue = -1
-	exitOK        = 0
-	exitError     = 1
-	exitUsage     = 2
+	exitOK    = 0
+	exitError = 1
+	exitUsage = 2
 )
 
-// Run starts the application with os.Args.
-// It is the main entry point when the CLI is executed.
+// Run starts the application with os.Args and returns an exit code.
 func (a *App) Run() int {
+	err := a.RunWithArgs(os.Args)
+	if err == nil {
+		return exitOK
+	}
+
+	switch e := err.(type) {
+	case *CLIMessage:
+		fmt.Fprintln(e.writer, e)
+		return e.code
+	default:
+		fmt.Fprintf(a.stderr, "error: %v\n", err)
+		return 1
+	}
+}
+
+// RunE starts the application with os.Args and returns an error if any occurs.
+func (a *App) RunE() error {
 	return a.RunWithArgs(os.Args)
 }
 
 // RunWithArgs starts the application with a custom set of arguments.
 // It is useful for testing or integrating the CLI with another program.
-func (a *App) RunWithArgs(args []string) int {
+func (a *App) RunWithArgs(args []string) error {
+	if len(args) == 0 {
+		return a.handler([]string{})
+	}
 	return a.handler(args[1:])
 }
 

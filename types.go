@@ -91,7 +91,7 @@ type typeInt struct {
 func (i *typeInt) Set(value string) error {
 	v, err := strconv.Atoi(value)
 	if err != nil {
-		return Exit("", exitUsage)
+		return Exit(exitUsage, "")
 	}
 	*i.value = v
 	return nil
@@ -111,7 +111,7 @@ type typeFloat64 struct {
 func (f *typeFloat64) Set(value string) error {
 	v, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		return Exit("", exitUsage)
+		return Exit(exitUsage, "")
 	}
 	*f.value = v
 	return nil
@@ -131,7 +131,7 @@ type typeBool struct {
 func (b *typeBool) Set(value string) error {
 	v, err := strconv.ParseBool(value)
 	if err != nil {
-		return Exit("", exitUsage)
+		return Exit(exitUsage, "")
 	}
 	*b.value = v
 	return nil

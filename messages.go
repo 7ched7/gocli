@@ -35,6 +35,7 @@ type CLIMessage struct {
 	messageType messageType
 	command     CommandInfo
 	data        map[string]string
+	writer      io.Writer
 }
 
 // Error implements the error interface for the message.
@@ -58,15 +59,33 @@ func (m *CLIMessage) Command() CommandInfo { return m.command }
 // Data returns a map of metadata related to the event.
 func (m *CLIMessage) Data() map[string]string { return m.data }
 
+func newCLIMessage(
+	code int,
+	message string,
+	messageType messageType,
+	command CommandInfo,
+	data map[string]string,
+	writer io.Writer,
+) *CLIMessage {
+	return &CLIMessage{
+		code:        code,
+		message:     message,
+		messageType: messageType,
+		command:     command,
+		data:        data,
+		writer:      writer,
+	}
+}
+
 // Exit creates a new CLI message with the provided message and code.
-func Exit(message string, code int) *CLIMessage {
-	return &CLIMessage{message: message, code: code}
+func Exit(code int, message string) *CLIMessage {
+	return newCLIMessage(code, message, msgNone, nil, nil, nil)
 }
 
 // Exitf creates a new CLI message with a formatted message and code.
-func Exitf(format string, code int, a ...any) *CLIMessage {
+func Exitf(code int, format string, a ...any) *CLIMessage {
 	message := fmt.Sprintf(format, a...)
-	return &CLIMessage{message: message, code: code}
+	return newCLIMessage(code, message, msgNone, nil, nil, nil)
 }
 
 // MessageContext provides the necessary environment data for formatting
@@ -101,120 +120,120 @@ var defaultMessages MessagesMap = MessagesMap{
 }
 
 func msgHelp(msgCtx MessageContext) error {
-	return Exit(msgCtx.app.Help(), exitOK)
+	return Exit(exitOK, msgCtx.app.Help())
 }
 
 func msgCommandHelp(msgCtx MessageContext) error {
-	return Exit(msgCtx.app.CommandHelp(msgCtx.msg.command), exitOK)
+	return Exit(exitOK, msgCtx.app.CommandHelp(msgCtx.msg.command))
 }
 
 func msgVersion(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"%s version %s\n",
+	return Exitf(
+		exitOK,
+		"%s version %s",
 		msgCtx.app.Name(),
 		msgCtx.app.Version(),
 	)
-	return Exit(m, exitOK)
 }
 
 func msgNoCommand(msgCtx MessageContext) error {
-	return Exit(msgCtx.App().Help(), exitUsage)
+	return Exit(exitUsage, msgCtx.App().Help())
 }
 
 func msgUnknownCommand(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
+	return Exitf(
+		exitUsage,
 		"error: unknown command: '%s'\n%s",
 		msgCtx.msg.data["command"],
 		getUsage(&msgCtx),
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgSubcommandRequired(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
+	return Exitf(
+		exitUsage,
 		"error: a subcommand is required for the command: '%s'\n%s",
 		msgCtx.msg.data["command"],
 		getUsage(&msgCtx),
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgInvalidFlag(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
+	return Exitf(
+		exitUsage,
 		"error: invalid flag: '%s'\n%s",
 		msgCtx.msg.data["flag"],
 		getUsage(&msgCtx),
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgFlagValueMissing(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: a value is required for the flag: '%s'\n",
+	return Exitf(
+		exitUsage,
+		"error: a value is required for the flag: '%s'",
 		msgCtx.msg.data["flag"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgFlagRequired(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: flag is required: '%s'\n",
+	return Exitf(
+		exitUsage,
+		"error: flag is required: '%s'",
 		msgCtx.msg.data["flag"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgIntParseError(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: invalid value '%v': must be an integer.\n",
+	return Exitf(
+		exitUsage,
+		"error: invalid value '%v': must be an integer.",
 		msgCtx.msg.data["value"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgFloat64ParseError(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: invalid value '%v': must be a float.\n",
+	return Exitf(
+		exitUsage,
+		"error: invalid value '%v': must be a float.",
 		msgCtx.msg.data["value"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgBoolParseError(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: invalid value '%v': must be a bool.\n",
+	return Exitf(
+		exitUsage,
+		"error: invalid value '%v': must be a bool.",
 		msgCtx.msg.data["value"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgUnexpectedArgument(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: unexpected argument: '%s'\n'%s' does not accept arguments.\n",
+	return Exitf(
+		exitUsage,
+		"error: unexpected argument: '%s'\n'%s' does not accept arguments.",
 		msgCtx.msg.data["argument"],
 		msgCtx.msg.command.Name(),
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgTooFewArguments(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: '%s' requires at least %d argument(s), but got %s.\n",
+	return Exitf(
+		exitUsage,
+		"error: '%s' requires at least %d argument(s), but got %s.",
 		msgCtx.msg.command.Name(),
 		msgCtx.msg.command.MinArg(),
 		msgCtx.msg.data["number"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func msgTooManyArguments(msgCtx MessageContext) error {
-	m := fmt.Sprintf(
-		"error: '%s' accepts at most %d argument(s), but got %s.\n",
+	return Exitf(
+		exitUsage,
+		"error: '%s' accepts at most %d argument(s), but got %s.",
 		msgCtx.msg.command.Name(),
 		msgCtx.msg.command.MaxArg(),
 		msgCtx.msg.data["number"],
 	)
-	return Exit(m, exitUsage)
 }
 
 func getUsage(msgCtx *MessageContext) string {
@@ -224,13 +243,13 @@ func getUsage(msgCtx *MessageContext) string {
 	if helpFlag != nil {
 		h := helpFlag.Name()
 		if h != "" {
-			usageMsg = fmt.Sprintf("use --%s for usage information.\n", h)
+			usageMsg = fmt.Sprintf("use --%s for usage information.", h)
 		}
 	}
 	return usageMsg
 }
 
-func (a *App) exit(cliMsg *CLIMessage) int {
+func (a *App) exit(cliMsg *CLIMessage) error {
 	getWriter := func(code int) io.Writer {
 		if code == exitOK {
 			return a.Stdout()
@@ -249,21 +268,17 @@ func (a *App) exit(cliMsg *CLIMessage) int {
 	code := cliMsg.code
 	message := cliMsg.message
 	messageType := cliMsg.messageType
+	command := cliMsg.command
+	data := cliMsg.data
 	out := getWriter(code)
 
 	if messageType == msgNone {
-		fmt.Fprint(out, message)
-		return code
+		return newCLIMessage(code, message, messageType, command, data, out)
 	}
 
 	msgCtx := MessageContext{
 		app: a,
-		msg: &CLIMessage{
-			code:        code,
-			messageType: messageType,
-			command:     cliMsg.command,
-			data:        cliMsg.data,
-		},
+		msg: newCLIMessage(code, message, messageType, command, data, out),
 	}
 
 	if fn, ok := defaultMessages[messageType]; fn != nil && ok {
@@ -284,30 +299,19 @@ func (a *App) exit(cliMsg *CLIMessage) int {
 	}
 
 	out = getWriter(code)
-	fmt.Fprint(out, message)
-	return code
+	return newCLIMessage(code, message, messageType, command, data, out)
 }
 
-func (a *App) exitWithMsg(messageType messageType, command CommandInfo, data map[string]string) int {
+func (a *App) exitWithMsg(messageType messageType, command CommandInfo, data map[string]string) error {
 	if data == nil {
 		data = map[string]string{}
 	}
-
-	return a.exit(&CLIMessage{
-		messageType: messageType,
-		command:     command,
-		data:        data,
-	})
+	return a.exit(newCLIMessage(0, "", messageType, command, data, nil))
 }
 
-func (a *App) exitWithErr(err error, defaultCode int) int {
+func (a *App) exitWithErr(err error, defaultCode int) error {
 	if e, ok := err.(*CLIMessage); ok {
 		defaultCode = e.code
 	}
-
-	return a.exit(&CLIMessage{
-		code:        defaultCode,
-		message:     err.Error(),
-		messageType: msgNone,
-	})
+	return a.exit(newCLIMessage(defaultCode, err.Error(), msgNone, nil, nil, nil))
 }

@@ -11,24 +11,24 @@ type parser struct {
 	versionRequested bool
 }
 
-func (a *App) handler(args []string) int {
-	ctx, code := a.parse(args)
-	if code != stateContinue {
-		return code
+func (a *App) handler(args []string) error {
+	ctx, err := a.parse(args)
+	if err != nil {
+		return err
 	}
 
-	if code = a.validate(ctx); code != stateContinue {
-		return code
+	if err := a.validate(ctx); err != nil {
+		return err
 	}
 
-	if code = a.run(ctx); code != stateContinue {
-		return code
+	if err := a.run(ctx); err != nil {
+		return err
 	}
 
-	return exitOK
+	return nil
 }
 
-func (a *App) parse(args []string) (*Context, int) {
+func (a *App) parse(args []string) (*Context, error) {
 	p := &parser{}
 
 	ctx := &Context{
@@ -57,29 +57,29 @@ func (a *App) parse(args []string) (*Context, int) {
 			continue
 		}
 
-		var code int
+		var err error
 		var newi int
 
 		// Positional argument
 		if !strings.HasPrefix(arg, "-") {
-			if code = a.handleArgument(ctx, arg); code != stateContinue {
-				return nil, code
+			if err := a.handleArgument(ctx, arg); err != nil {
+				return nil, err
 			}
 			continue
 		}
 
 		if !strings.HasPrefix(arg, "--") && len(arg) > 1 {
-			newi, code = a.handleShortFlag(p, ctx, arg, args, i)
+			newi, err = a.handleShortFlag(p, ctx, arg, args, i)
 		} else {
-			newi, code = a.handleLongFlag(p, ctx, arg, args, i)
+			newi, err = a.handleLongFlag(p, ctx, arg, args, i)
 		}
 
-		if code != stateContinue {
-			return nil, code
+		if err != nil {
+			return nil, err
 		}
 
-		if code := a.handleHelpAndVersion(p, ctx.command); code != stateContinue {
-			return nil, code
+		if err := a.handleHelpAndVersion(p, ctx.command); err != nil {
+			return nil, err
 		}
 
 		i = newi
@@ -97,10 +97,10 @@ func (a *App) parse(args []string) (*Context, int) {
 		})
 	}
 
-	return ctx, stateContinue
+	return ctx, nil
 }
 
-func (a *App) handleArgument(ctx *Context, arg string) int {
+func (a *App) handleArgument(ctx *Context, arg string) error {
 	isCmd := false
 
 	if len(ctx.args) == 0 {
@@ -132,10 +132,10 @@ func (a *App) handleArgument(ctx *Context, arg string) int {
 		}
 	}
 
-	return stateContinue
+	return nil
 }
 
-func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, int) {
+func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, error) {
 	var matchedFlag FlagInfo
 
 	matches := func(flagName string, f FlagInfo) bool {
@@ -187,17 +187,17 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, i
 		})
 	}
 
-	return matchedFlag, stateContinue
+	return matchedFlag, nil
 }
 
-func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, int) {
+func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, error) {
 	var matchedFlag FlagInfo
-	var code int
+	var err error
 
 	for j, f := range arg[1:] {
-		matchedFlag, code = a.findFlag(p, ctx.command, "-"+string(f))
-		if code != stateContinue {
-			return i, code
+		matchedFlag, err = a.findFlag(p, ctx.command, "-"+string(f))
+		if err != nil {
+			return i, err
 		}
 
 		var flagValue string
@@ -218,8 +218,8 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 			}
 		}
 
-		if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != stateContinue {
-			return i, code
+		if err := a.handleFlagValue(ctx, matchedFlag, flagValue); err != nil {
+			return i, err
 		}
 
 		switch matchedFlag.Value().(type) {
@@ -229,10 +229,10 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 		break
 	}
 
-	return i, stateContinue
+	return i, nil
 }
 
-func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, int) {
+func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, error) {
 	var flagName string
 	var flagValue string
 	hasEqualSign := strings.Contains(arg, "=")
@@ -245,9 +245,9 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 		flagName = arg
 	}
 
-	matchedFlag, code := a.findFlag(p, ctx.command, flagName)
-	if code != stateContinue {
-		return i, code
+	matchedFlag, err := a.findFlag(p, ctx.command, flagName)
+	if err != nil {
+		return i, err
 	}
 
 	switch matchedFlag.Value().(type) {
@@ -268,14 +268,14 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 		}
 	}
 
-	if code := a.handleFlagValue(ctx, matchedFlag, flagValue); code != stateContinue {
-		return i, code
+	if err := a.handleFlagValue(ctx, matchedFlag, flagValue); err != nil {
+		return i, err
 	}
 
-	return i, stateContinue
+	return i, nil
 }
 
-func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue string) int {
+func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue string) error {
 	if err := matchedFlag.Value().Set(flagValue); err != nil {
 		return a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
 	}
@@ -285,10 +285,10 @@ func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue stri
 		ctx.flags[matchedFlag.Name()] = matchedFlag
 	}
 
-	return stateContinue
+	return nil
 }
 
-func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagValue string, err error) int {
+func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagValue string, err error) error {
 	errInfo := map[string]string{
 		"flag":  matchedFlag.Name(),
 		"value": flagValue,
@@ -306,7 +306,7 @@ func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagVa
 	}
 }
 
-func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) int {
+func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) error {
 	if cmd == a.root {
 		if p.helpRequested {
 			return a.exitWithMsg(MsgHelp, cmd, nil)
@@ -321,10 +321,10 @@ func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) int {
 		}
 	}
 
-	return stateContinue
+	return nil
 }
 
-func (a *App) validate(ctx *Context) int {
+func (a *App) validate(ctx *Context) error {
 	nargs := len(ctx.args)
 	cmd := ctx.command
 
@@ -360,15 +360,15 @@ func (a *App) validate(ctx *Context) int {
 		}
 	}
 
-	return stateContinue
+	return nil
 }
 
-func (a *App) run(ctx *Context) int {
+func (a *App) run(ctx *Context) error {
 	if ctx.command.action() != nil {
 		if err := ctx.command.action()(ctx); err != nil {
 			return a.exitWithErr(err, exitError)
 		}
 	}
 
-	return stateContinue
+	return nil
 }
