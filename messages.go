@@ -27,8 +27,8 @@ const (
 )
 
 // CLIMessage represents a structured message used by the CLI.
-// It includes an exit code, message, message type, and optional command pointer,
-// as well as extra metadata.
+// It includes an exit code, message, message type, optional command pointer,
+// metadata, and I/O writer.
 type CLIMessage struct {
 	code        int
 	message     string
@@ -44,19 +44,19 @@ func (m *CLIMessage) Error() string {
 	return m.message
 }
 
-// Code returns the exit code associated with the event.
+// Code returns the exit code associated with the message.
 func (m *CLIMessage) Code() int { return m.code }
 
-// Message returns the message of the event.
+// Message returns the raw text content of the message.
 func (m *CLIMessage) Message() string { return m.message }
 
-// MessageType returns the categorized type of the event.
+// MessageType returns the internal type of the message.
 func (m *CLIMessage) MessageType() messageType { return m.messageType }
 
-// Command returns the command where the event occured.
+// Command returns the command that triggered the message.
 func (m *CLIMessage) Command() CommandInfo { return m.command }
 
-// Data returns a map of metadata related to the event.
+// Data returns the metadata associated with the message.
 func (m *CLIMessage) Data() map[string]string { return m.data }
 
 func newCLIMessage(
@@ -77,19 +77,19 @@ func newCLIMessage(
 	}
 }
 
-// Exit creates a new CLI message with the provided message and code.
+// Exit creates a new CLI message with the provided code and message.
 func Exit(code int, message string) *CLIMessage {
 	return newCLIMessage(code, message, msgNone, nil, nil, nil)
 }
 
-// Exitf creates a new CLI message with a formatted message and code.
+// Exitf creates a new CLI message with the code and formatted message.
 func Exitf(code int, format string, a ...any) *CLIMessage {
 	message := fmt.Sprintf(format, a...)
 	return newCLIMessage(code, message, msgNone, nil, nil, nil)
 }
 
-// MessageContext provides the necessary environment data for formatting
-// and handling CLI messages.
+// MessageContext provides the necessary environment data
+// for formatting and handling CLI messages.
 type MessageContext struct {
 	app AppInfo
 	msg *CLIMessage
@@ -98,7 +98,7 @@ type MessageContext struct {
 // App returns the application instance.
 func (m *MessageContext) App() AppInfo { return m.app }
 
-// Msg returns the CLIMessage providing details about the event.
+// Msg returns the underlying CLIMessage.
 func (m *MessageContext) Msg() *CLIMessage { return m.msg }
 
 var defaultMessages MessagesMap = MessagesMap{
@@ -252,9 +252,9 @@ func getUsage(msgCtx *MessageContext) string {
 func (a *App) exit(cliMsg *CLIMessage) error {
 	getWriter := func(code int) io.Writer {
 		if code == exitOK {
-			return a.Stdout()
+			return a.config.Stdout
 		}
-		return a.Stderr()
+		return a.config.Stderr
 	}
 
 	getMessageInfo := func(err error, currCode int) (string, int) {

@@ -30,7 +30,7 @@ type FlagValue interface {
 	String() string         // String returns the string representation of the value.
 }
 
-// FlagInfo provides access to flag metadata and behaviour.
+// FlagInfo provides access to flag metadata.
 type FlagInfo interface {
 	Name() string                // Name returns the name of the flag.
 	Alias() string               // Alias returns the optional alias of the flag.

@@ -2,22 +2,19 @@ package gocli
 
 import (
 	"fmt"
-	"io"
 	"os"
 )
 
 // App represents the main CLI application.
 // It holds the root command, version information,
-// global configurations, and output writers.
+// and global configuration.
 type App struct {
 	root    *Command
 	version string
 	config  AppConfig
-	stdout  io.Writer
-	stderr  io.Writer
 }
 
-// AppInfo provides access to application metadata and behaviour.
+// AppInfo provides access to application metadata.
 type AppInfo interface {
 	Name() string                       // Name returns the display name of the application.
 	Version() string                    // Version returns the version of the application.
@@ -27,8 +24,6 @@ type AppInfo interface {
 	MinArg() int                        // MinArg returns the minimum number of positional arguments.
 	MaxArg() int                        // MaxArg returns the maximum number of positional arguments.
 	Config() AppConfig                  // Config returns the configuration settings of the application.
-	Stdout() io.Writer                  // Stdout returns the output writer used for standard output.
-	Stderr() io.Writer                  // Stderr returns the output writer used for standard error.
 	Help() string                       // Help generates and returns the global help menu for the application.
 	CommandHelp(cmd CommandInfo) string // CommandHelp generates and returns a help menu for a specific command.
 }
@@ -51,7 +46,7 @@ func (a *App) Run() int {
 		fmt.Fprintln(e.writer, e)
 		return e.code
 	default:
-		fmt.Fprintf(a.stderr, "error: %v\n", err)
+		fmt.Fprintf(a.config.Stderr, "error: %v\n", err)
 		return 1
 	}
 }
@@ -79,8 +74,6 @@ func NewApp(name string) *App {
 			flags:       []FlagInfo{},
 		},
 		config: DefaultAppConfig(),
-		stdout: os.Stdout,
-		stderr: os.Stderr,
 	}
 }
 
@@ -127,18 +120,14 @@ func (a *App) WithConfig(config AppConfig) *App {
 		a.config.CustomMessages = config.CustomMessages
 	}
 
-	return a
-}
+	if config.Stdout != nil {
+		a.config.Stdout = config.Stdout
+	}
 
-// WithStdout sets the writer used for standard output.
-func (a *App) WithStdout(out io.Writer) *App {
-	a.stdout = out
-	return a
-}
+	if config.Stderr != nil {
+		a.config.Stderr = config.Stderr
+	}
 
-// WithStderr sets the writer used for error output.
-func (a *App) WithStderr(err io.Writer) *App {
-	a.stderr = err
 	return a
 }
 
@@ -187,21 +176,3 @@ func (a *App) MaxArg() int { return a.root.maxArg }
 
 // Config returns the configuration settings of the application.
 func (a *App) Config() AppConfig { return a.config }
-
-// Stdout returns the output writer used for standard output.
-// If nil, it falls back to os.Stdout.
-func (a *App) Stdout() io.Writer {
-	if a.stdout != nil {
-		return a.stdout
-	}
-	return os.Stdout
-}
-
-// Stderr returns the output writer used for standard error.
-// If nil, it falls back to os.Stderr.
-func (a *App) Stderr() io.Writer {
-	if a.stderr != nil {
-		return a.stderr
-	}
-	return os.Stderr
-}

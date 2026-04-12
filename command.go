@@ -15,7 +15,7 @@ type Command struct {
 	parent      CommandInfo
 }
 
-// CommandInfo provides access to command metadata and behaviour.
+// CommandInfo provides access to command metadata.
 type CommandInfo interface {
 	Name() string               // Name returns the name of the command.
 	Alias() string              // Alias returns the alias of the command.
