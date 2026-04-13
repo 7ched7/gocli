@@ -84,10 +84,23 @@ func commandsToRows(cmds []CommandInfo) []row {
 	rows := make([]row, 0)
 
 	for _, c := range cmds {
-		left := c.Name()
-		if c.Alias() != "" {
-			left += ", " + c.Alias()
+		if c.Name() == "" && c.Alias() == "" {
+			continue
 		}
+
+		left := ""
+		if name := c.Name(); name != "" {
+			left += name
+		}
+
+		if c.Name() != "" && c.Alias() != "" {
+			left += ", "
+		}
+
+		if alias := c.Alias(); alias != "" {
+			left += alias
+		}
+
 		rows = append(rows, row{left, c.Short(), len(left)})
 	}
 
@@ -129,9 +142,7 @@ func flagsToRows(flags []FlagInfo) []row {
 			}
 		}
 
-		right := f.Description()
-
-		rows = append(rows, row{left, right, len(left)})
+		rows = append(rows, row{left, f.Description(), len(left)})
 	}
 
 	return rows
