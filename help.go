@@ -73,7 +73,7 @@ func (a *App) getFlags(cmd CommandInfo) []FlagInfo {
 		displayFlags = append(displayFlags, a.config.HelpFlag)
 	}
 
-	if cmd == a.root && a.config.VersionFlag != nil && a.version != "" {
+	if cmd == a.root && a.config.VersionFlag != nil {
 		displayFlags = append(displayFlags, a.config.VersionFlag)
 	}
 

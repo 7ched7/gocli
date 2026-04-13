@@ -153,7 +153,7 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, e
 	}
 
 	// Version flag
-	if matchedFlag == nil && cmd == a.root && a.version != "" {
+	if matchedFlag == nil && cmd == a.root {
 		f := a.config.VersionFlag
 		if f != nil && matches(flagName, f) {
 			matchedFlag = f
@@ -312,7 +312,7 @@ func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) error {
 			return a.exitWithMsg(MsgHelp, cmd, nil)
 		}
 
-		if p.versionRequested && a.config.VersionFlag != nil && a.version != "" {
+		if p.versionRequested {
 			return a.exitWithMsg(MsgVersion, cmd, nil)
 		}
 	} else {
