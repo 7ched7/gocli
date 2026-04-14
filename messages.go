@@ -59,6 +59,9 @@ func (m *CLIMessage) Command() CommandInfo { return m.command }
 // Data returns the metadata associated with the message.
 func (m *CLIMessage) Data() map[string]string { return m.data }
 
+// Writer returns the writer where the message is written.
+func (m *CLIMessage) Writer() io.Writer { return m.writer }
+
 func newCLIMessage(
 	code int,
 	message string,
