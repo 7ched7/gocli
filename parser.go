@@ -87,7 +87,7 @@ func (a *App) parse(args []string) (*Context, error) {
 
 	cmd := ctx.command
 
-	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 {
+	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
 		return nil, a.exitWithMsg(MsgNoCommand, cmd, nil)
 	}
 
