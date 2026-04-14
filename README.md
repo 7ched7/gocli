@@ -17,7 +17,6 @@ go get github.com/7ched7/gocli@latest
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/7ched7/gocli"
@@ -27,22 +26,17 @@ func main() {
 	// Create a new App instance
 	app := gocli.NewApp("mycli").WithVersion("0.1.0")
 
-	nameFlag := gocli.NewStringFlag("name").WithAlias("n")
+	nameFlag := gocli.NewStringFlag("name", "Guest").WithAlias("n")
 
 	app.
 		AddGlobalFlag(nameFlag).
 		WithMinArg(1).
 		WithMaxArg(1).
-		Action(func(ctx *gocli.Context) {
+		WithAction(func(ctx *gocli.Context) error {
 			name := ctx.String("name")
 			message := ctx.Args()[0]
 
-			if name != "" {
-				fmt.Printf("Hey %s! %s\n", name, message)
-			} else {
-				fmt.Printf("Hey Guest! %s\n", message)
-			}
-
+			return gocli.Exitf(0, "Hey %s! %s", name, message)
 		})
 
 	os.Exit(app.Run())
@@ -69,11 +63,12 @@ Once defined, register the command by passing it to the `AddCommand` method of t
 app.AddCommand(serverCmd)
 ```
 
-If your project requires nested commands, you can register the command object directly within a parent command object using the `AddSubcommand` method.
+If your project requires nested commands, you can register the command directly within a parent command using the `AddSubcommand` method.
 ```go
 startCmd := gocli.NewCommand("start").
-	Action(func(ctx *gocli.Context) {
+	WithAction(func(ctx *gocli.Context) error {
 		fmt.Println("Server is up and running!")
+		return nil
 	})
 
 serverCmd.AddSubcommand(startCmd)
@@ -93,13 +88,13 @@ Server is up and running!
 ### Flags
 Flags are created using type-specific helper methods and then registered on a command using the `AddFlag` method.
 ```go
-ipFlag := gocli.NewStringFlag("ip")
+ipFlag := gocli.NewStringFlag("ip", "")
 startCmd.AddFlag(ipFlag)
 ```
 
-You can also add flags globally. Simply pass the flag object to the `AddGlobalFlag` method of the app instance. No matter which command you run, the global flags will always be available. 
+You can also add flags globally. Simply pass the flag to the `AddGlobalFlag` method of the app instance. No matter which command you run, the global flags will always be available. 
 ```go
-verboseFlag := gocli.NewBoolFlag("verbose")
+verboseFlag := gocli.NewBoolFlag("verbose", false)
 app.AddGlobalFlag(verboseFlag)
 ```
 
@@ -115,37 +110,39 @@ var ip string = "127.0.0.1"
 ipFlag := gocli.NewStringFlagVar("ip", &ip).WithAlias("i")
 
 startCmd.AddFlag(ipFlag).
-	Action(func(ctx *gocli.Context) {
+	WithAction(func(ctx *gocli.Context) error {
 		fmt.Printf("IP address: %s\n", ip) // Direct access
+		return nil
 	})
 ```
 
 #### Dynamic Access via Context
 Another approach is to retrieve the flag value from the **Context** during execution. This is more flexible than binding approach and can be used when multiple flags are involved.
 ```go
-portFlag := gocli.NewIntFlag("port").WithAlias("p")
+portFlag := gocli.NewIntFlag("port", 0).WithAlias("p")
 
 startCmd.AddFlag(portFlag).
-	Action(func(ctx *gocli.Context) {
+	WithAction(func(ctx *gocli.Context) error {
 		port := ctx.Int("port") // Get flag value from context
 		fmt.Printf("IP address: %s\n", ip)
 		fmt.Printf("Port: %d\n", port)
+		return nil
 	})
 ```
 
 **Execution Example**
 ```console
-$ mycli server start -i 127.0.0.2 -p 8000
-IP address: 127.0.0.2
+$ mycli server start -i 127.0.0.1 -p 8000
+IP address: 127.0.0.1
 Port: 8000
 ```
 
 ### Custom Validator
-Flags may need to be validated to ensure they meet specific conditions. In such cases, you can use the `WithValidator` method on the flag object to validate the flag value just before the action is triggered.
+Flags may need to be validated to ensure they meet specific conditions. In such cases, you can use the `WithValidator` method on the flag to validate the flag value just before the action is triggered.
 ```go
 portFlag.WithValidator(func(ctx *gocli.Context, value int) error {
 	if value < 1 || value > 65535 {
-		return fmt.Errorf("invalid port number: %d\n", value)
+		return fmt.Errorf("invalid port number: %d", value)
 	}
 	return nil
 })
@@ -157,12 +154,12 @@ $ mycli server start -i 127.0.0.1 -p 80000
 invalid port number: 80000
 ```
 
-The **Context** object allows you to write more complex controls by providing access to other flag values.
+The **Context** allows you to write more complex controls by providing access to other flag values.
 ```go
 ip := ctx.String("ip")
 
 if ip == "127.0.0.1" && value == 8080 {
-	return fmt.Errorf("port already in use: %s:%d\n", ip, value)
+	return fmt.Errorf("port already in use: %s:%d", ip, value)
 }
 ```
 
@@ -189,9 +186,10 @@ func (i *IP) Set(value string) error {
 		i.value = ip
 		return nil
 	}
-	return fmt.Errorf("invalid IP address: %s\n", value)
+	return fmt.Errorf("invalid IP address: %s", value)
 }
 ```
+
 To retrieve the processed data back, you need to implement the `Get()` method. This returns the underlying value as **any** type.
 ```go
 func (i *IP) Get() any { 
@@ -209,7 +207,7 @@ func (i *IP) String() string {
 Once your struct satisfies the **FlagValue** interface, you can integrate it into the flag using the `NewCustomFlagVar` method provided by the API. Simply create a typed variable and bind it.
 ```go
 var ip IP
-ipFlag := gocli.NewCustomFlagVar("ip", &ip)
+ipFlag := gocli.NewCustomFlagVar("ip", &ip).WithAlias("i")
 ```
 
 **Execution Example**
@@ -218,14 +216,36 @@ $ mycli server start -i 256.168.1.1
 invalid IP address: 256.168.1.1
 ```
 
-### Custom Messages
-One of the core features of this framework is its flexible message handling. You can override the default behavior for various CLI events to provide more user-friendly messages. 
+### Configurations
+This framework offers a flexible configuration system that allows you to customize core behaviors.
 
-Simply specify one of the predefined events using the `HandleMessage` method and return the message you want to display.
+#### Customizing Default Flags
+By default, framework comes with standard flags like **--help** and **--version**. You are free to customize them to better suit your own style and needs.
 ```go
-app.HandleMessage(gocli.MsgUnknownCommand, func(msgCtx gocli.MessageContext) string {
-	return "invalid command\n"
-})
+conf := gocli.DefaultAppConfig()
+
+// Override the version flag alias (e.g., using -V instead of -v)
+conf.VersionFlag = gocli.DefaultVersionFlag().WithAlias("V")
+
+app.WithConfig(conf)
+```
+
+**Execution Example**
+```console
+$ mycli -V
+mycli version 0.1.0
+```
+
+#### Customizing System Messages
+One of the core features of the framework is the ability to override default system messages. Using `CustomMessages`, you can provide a more user-friendly output.	 
+
+Simply define a **MessagesMap** and assign a custom function to the specific message type you want to override.
+```go
+conf.CustomMessages = gocli.MessagesMap{
+	gocli.MsgUnknownCommand: func(msgCtx gocli.MessageContext) error {
+		return fmt.Errorf("invalid command")
+	},
+}
 ```
 
 **Execution Example**
@@ -234,8 +254,7 @@ $ mycli servr
 invalid command
 ```
 
-The **MessageContext** object can be used to generate more advanced messages. You can access information about the event and other objects.
-
+For more advanced scenarios, the **MessageContext** gives you access to detailed runtime state. This makes it possible to generate dynamic messages.
 ```go
 unkCommand := msgCtx.Msg().Data()["command"] // Access the entered invalid command
 commands := msgCtx.App().Commands() // All registered commands in app instance
@@ -252,7 +271,7 @@ for _, cmd := range commands {
 	sb.WriteString("\n")
 }
 
-return sb.String()
+return fmt.Errorf(sb.String())
 ```
 
 **Execution Example**
