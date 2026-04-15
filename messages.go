@@ -292,11 +292,14 @@ func (a *App) exit(cliMsg *CLIMessage) error {
 
 	// override the default message
 	if a.config.CustomMessages != nil {
+		msgCtx.msg.code = code
 		msgCtx.msg.message = message
 
 		if fn, ok := a.config.CustomMessages[messageType]; fn != nil && ok {
 			if err := fn(msgCtx); err != nil {
 				message, code = getMessageInfo(err, code)
+			} else {
+				message = ""
 			}
 		}
 	}
