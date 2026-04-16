@@ -262,12 +262,37 @@ func writeSection(sb *strings.Builder, title string, rows []row) {
 func (a *App) writeFooter(sb *strings.Builder) {
 	var footer string
 	if a.config.HelpFlag != nil {
-		h := a.config.HelpFlag.Name()
+		h := flagDisplayName(a.config.HelpFlag, true)
 		if h != "" {
-			footer = fmt.Sprintf("\n\nUse \"%s <command> --%s\" for more information about a command.", a.root.name, h)
+			footer = fmt.Sprintf("\n\nUse \"%s <command> %s\" for more information about a command.", a.root.name, h)
 		}
 	}
 	sb.WriteString(footer)
+}
+
+func flagDisplayName(f FlagInfo, dash bool) string {
+	name := f.Name()
+
+	if name == "" {
+		alias := f.Alias()
+
+		if dash && alias != "" {
+			return "-" + alias
+		}
+		return alias
+	}
+
+	if dash {
+		return "--" + name
+	}
+	return name
+}
+
+func commandDisplayName(c CommandInfo) string {
+	if c.Name() == "" {
+		return c.Alias()
+	}
+	return c.Name()
 }
 
 func getMaxKeyLen(rows []row) int {

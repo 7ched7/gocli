@@ -146,27 +146,27 @@ func msgNoCommand(msgCtx MessageContext) error {
 func msgUnknownCommand(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: unknown command: '%s'\n%s",
+		"error: unknown command: '%s'%s",
 		msgCtx.msg.data["command"],
-		getUsage(&msgCtx),
+		msgUsage(&msgCtx),
 	)
 }
 
 func msgSubcommandRequired(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: a subcommand is required for the command: '%s'\n%s",
+		"error: a subcommand is required for the command: '%s'%s",
 		msgCtx.msg.data["command"],
-		getUsage(&msgCtx),
+		msgUsage(&msgCtx),
 	)
 }
 
 func msgInvalidFlag(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: invalid flag: '%s'\n%s",
+		"error: invalid flag: '%s'%s",
 		msgCtx.msg.data["flag"],
-		getUsage(&msgCtx),
+		msgUsage(&msgCtx),
 	)
 }
 
@@ -215,7 +215,7 @@ func msgUnexpectedArgument(msgCtx MessageContext) error {
 		exitUsage,
 		"error: unexpected argument: '%s'\n'%s' does not accept arguments.",
 		msgCtx.msg.data["argument"],
-		msgCtx.msg.command.Name(),
+		commandDisplayName(msgCtx.msg.command),
 	)
 }
 
@@ -223,7 +223,7 @@ func msgTooFewArguments(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
 		"error: '%s' requires at least %d argument(s), but got %s.",
-		msgCtx.msg.command.Name(),
+		commandDisplayName(msgCtx.msg.command),
 		msgCtx.msg.command.MinArg(),
 		msgCtx.msg.data["number"],
 	)
@@ -233,23 +233,20 @@ func msgTooManyArguments(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
 		"error: '%s' accepts at most %d argument(s), but got %s.",
-		msgCtx.msg.command.Name(),
+		commandDisplayName(msgCtx.msg.command),
 		msgCtx.msg.command.MaxArg(),
 		msgCtx.msg.data["number"],
 	)
 }
 
-func getUsage(msgCtx *MessageContext) string {
-	var usageMsg string
+func msgUsage(msgCtx *MessageContext) string {
 	helpFlag := msgCtx.app.Config().HelpFlag
+	h := flagDisplayName(helpFlag, true)
 
-	if helpFlag != nil {
-		h := helpFlag.Name()
-		if h != "" {
-			usageMsg = fmt.Sprintf("use --%s for usage information.", h)
-		}
+	if h != "" {
+		return fmt.Sprintf("\nuse '%s' for usage information.", h)
 	}
-	return usageMsg
+	return ""
 }
 
 func (a *App) exit(cliMsg *CLIMessage) error {
@@ -309,9 +306,6 @@ func (a *App) exit(cliMsg *CLIMessage) error {
 }
 
 func (a *App) exitWithMsg(messageType messageType, command CommandInfo, data map[string]string) error {
-	if data == nil {
-		data = map[string]string{}
-	}
 	return a.exit(newCLIMessage(0, "", messageType, command, data, nil))
 }
 

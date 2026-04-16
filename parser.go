@@ -40,7 +40,7 @@ func (a *App) parse(args []string) (*Context, error) {
 
 	// Global flag values mapping
 	for _, f := range ctx.command.Flags() {
-		ctx.flags[f.Name()] = f
+		ctx.flags[flagDisplayName(f, false)] = f
 	}
 
 	for i := 0; i < len(args); i++ {
@@ -93,7 +93,7 @@ func (a *App) parse(args []string) (*Context, error) {
 
 	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
 		return nil, a.exitWithMsg(MsgSubcommandRequired, cmd, map[string]string{
-			"command": cmd.Name(),
+			"command": commandDisplayName(cmd),
 		})
 	}
 
@@ -126,8 +126,8 @@ func (a *App) handleArgument(ctx *Context, arg string) error {
 	} else {
 		// Flag values mapping
 		for _, f := range cmd.Flags() {
-			if _, ok := ctx.flags[f.Name()]; !ok {
-				ctx.flags[f.Name()] = f
+			if _, ok := ctx.flags[flagDisplayName(f, false)]; !ok {
+				ctx.flags[flagDisplayName(f, false)] = f
 			}
 		}
 	}
@@ -140,7 +140,7 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, e
 
 	matches := func(flagName string, f FlagInfo) bool {
 		if f != nil {
-			return flagName == "--"+f.Name() || (f.Alias() != "" && flagName == "-"+f.Alias())
+			return (f.Name() != "" && flagName == "--"+f.Name()) || (f.Alias() != "" && flagName == "-"+f.Alias())
 		}
 		return false
 	}
@@ -213,7 +213,7 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 				i++
 			} else {
 				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
-					"flag": matchedFlag.Alias(),
+					"flag": flagDisplayName(matchedFlag, true),
 				})
 			}
 		}
@@ -262,7 +262,7 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 				i++
 			} else {
 				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
-					"flag": matchedFlag.Name(),
+					"flag": flagDisplayName(matchedFlag, true),
 				})
 			}
 		}
@@ -282,7 +282,7 @@ func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue stri
 
 	if matchedFlag.role() != flagHelp && matchedFlag.role() != flagVersion {
 		matchedFlag.set()
-		ctx.flags[matchedFlag.Name()] = matchedFlag
+		ctx.flags[flagDisplayName(matchedFlag, false)] = matchedFlag
 	}
 
 	return nil
@@ -290,7 +290,7 @@ func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue stri
 
 func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagValue string, err error) error {
 	errInfo := map[string]string{
-		"flag":  matchedFlag.Name(),
+		"flag":  flagDisplayName(matchedFlag, true),
 		"value": flagValue,
 	}
 
@@ -347,7 +347,7 @@ func (a *App) validate(ctx *Context) error {
 	for _, f := range ctx.flags {
 		if f.IsRequired() && !f.IsSet() {
 			return a.exitWithMsg(MsgFlagRequired, cmd, map[string]string{
-				"flag": f.Name(),
+				"flag": flagDisplayName(f, true),
 			})
 		}
 	}
