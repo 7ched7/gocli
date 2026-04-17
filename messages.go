@@ -155,7 +155,7 @@ func msgUnknownCommand(msgCtx MessageContext) error {
 func msgSubcommandRequired(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: a subcommand is required for the command: '%s'%s",
+		"error: a subcommand is required for command '%s'%s",
 		msgCtx.msg.data["command"],
 		msgUsage(&msgCtx),
 	)
@@ -173,7 +173,7 @@ func msgInvalidFlag(msgCtx MessageContext) error {
 func msgFlagValueMissing(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: a value is required for the flag: '%s'",
+		"error: a value is required for flag '%s'",
 		msgCtx.msg.data["flag"],
 	)
 }
@@ -189,7 +189,7 @@ func msgFlagRequired(msgCtx MessageContext) error {
 func msgIntParseError(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: invalid value '%v': must be an integer.",
+		"error: invalid value '%v': expected integer",
 		msgCtx.msg.data["value"],
 	)
 }
@@ -197,7 +197,7 @@ func msgIntParseError(msgCtx MessageContext) error {
 func msgFloat64ParseError(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: invalid value '%v': must be a float.",
+		"error: invalid value '%v': expected float",
 		msgCtx.msg.data["value"],
 	)
 }
@@ -205,7 +205,7 @@ func msgFloat64ParseError(msgCtx MessageContext) error {
 func msgBoolParseError(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: invalid value '%v': must be a bool.",
+		"error: invalid value '%v': expected boolean",
 		msgCtx.msg.data["value"],
 	)
 }
@@ -213,17 +213,15 @@ func msgBoolParseError(msgCtx MessageContext) error {
 func msgUnexpectedArgument(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: unexpected argument: '%s'\n'%s' does not accept arguments.",
+		"error: unexpected argument: '%s'",
 		msgCtx.msg.data["argument"],
-		commandDisplayName(msgCtx.msg.command),
 	)
 }
 
 func msgTooFewArguments(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: '%s' requires at least %d argument(s), but got %s.",
-		commandDisplayName(msgCtx.msg.command),
+		"error: too few arguments; expected at least %d, but got %s",
 		msgCtx.msg.command.MinArg(),
 		msgCtx.msg.data["number"],
 	)
@@ -232,8 +230,7 @@ func msgTooFewArguments(msgCtx MessageContext) error {
 func msgTooManyArguments(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: '%s' accepts at most %d argument(s), but got %s.",
-		commandDisplayName(msgCtx.msg.command),
+		"error: too many arguments; expected at most %d, but got %s",
 		msgCtx.msg.command.MaxArg(),
 		msgCtx.msg.data["number"],
 	)
@@ -291,6 +288,7 @@ func (a *App) exit(cliMsg *CLIMessage) error {
 	if a.config.CustomMessages != nil {
 		msgCtx.msg.code = code
 		msgCtx.msg.message = message
+		msgCtx.msg.writer = getWriter(code)
 
 		if fn, ok := a.config.CustomMessages[messageType]; fn != nil && ok {
 			if err := fn(msgCtx); err != nil {
