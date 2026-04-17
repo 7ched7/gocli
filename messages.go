@@ -62,33 +62,21 @@ func (m *CLIMessage) Data() map[string]string { return m.data }
 // Writer returns the writer where the message is written.
 func (m *CLIMessage) Writer() io.Writer { return m.writer }
 
-func newCLIMessage(
-	code int,
-	message string,
-	messageType messageType,
-	command CommandInfo,
-	data map[string]string,
-	writer io.Writer,
-) *CLIMessage {
-	return &CLIMessage{
-		code:        code,
-		message:     message,
-		messageType: messageType,
-		command:     command,
-		data:        data,
-		writer:      writer,
-	}
-}
-
 // Exit creates a new CLI message with the provided code and message.
 func Exit(code int, message string) *CLIMessage {
-	return newCLIMessage(code, message, msgNone, nil, nil, nil)
+	return &CLIMessage{
+		code:    code,
+		message: message,
+	}
 }
 
 // Exitf creates a new CLI message with the code and formatted message.
 func Exitf(code int, format string, a ...any) *CLIMessage {
 	message := fmt.Sprintf(format, a...)
-	return newCLIMessage(code, message, msgNone, nil, nil, nil)
+	return &CLIMessage{
+		code:    code,
+		message: message,
+	}
 }
 
 // MessageContext provides the necessary environment data
@@ -246,7 +234,9 @@ func msgUsage(msgCtx *MessageContext) string {
 	return ""
 }
 
-func (a *App) exit(cliMsg *CLIMessage) error {
+func (a *App) exit(m *CLIMessage) error {
+	cliMsg := *m
+
 	getWriter := func(code int) io.Writer {
 		if code == exitOK {
 			return a.config.Stdout
@@ -262,54 +252,54 @@ func (a *App) exit(cliMsg *CLIMessage) error {
 		return msg, currCode
 	}
 
-	code := cliMsg.code
-	message := cliMsg.message
-	messageType := cliMsg.messageType
-	command := cliMsg.command
-	data := cliMsg.data
-	out := getWriter(code)
+	cliMsg.writer = getWriter(cliMsg.code)
 
-	if messageType == msgNone {
-		return newCLIMessage(code, message, messageType, command, data, out)
+	if cliMsg.messageType == msgNone {
+		return &cliMsg
 	}
 
 	msgCtx := MessageContext{
 		app: a,
-		msg: newCLIMessage(code, message, messageType, command, data, out),
+		msg: &cliMsg,
 	}
 
-	if fn, ok := defaultMessages[messageType]; fn != nil && ok {
+	if fn, ok := defaultMessages[cliMsg.messageType]; fn != nil && ok {
 		if err := fn(msgCtx); err != nil {
-			message, code = getMessageInfo(err, code)
+			cliMsg.message, cliMsg.code = getMessageInfo(err, cliMsg.code)
 		}
 	}
 
 	// override the default message
 	if a.config.CustomMessages != nil {
-		msgCtx.msg.code = code
-		msgCtx.msg.message = message
-		msgCtx.msg.writer = getWriter(code)
+		cliMsg.writer = getWriter(cliMsg.code)
 
-		if fn, ok := a.config.CustomMessages[messageType]; fn != nil && ok {
+		if fn, ok := a.config.CustomMessages[cliMsg.messageType]; fn != nil && ok {
 			if err := fn(msgCtx); err != nil {
-				message, code = getMessageInfo(err, code)
+				cliMsg.message, cliMsg.code = getMessageInfo(err, cliMsg.code)
 			} else {
-				message = ""
+				cliMsg.message = ""
 			}
 		}
 	}
 
-	out = getWriter(code)
-	return newCLIMessage(code, message, messageType, command, data, out)
+	cliMsg.writer = getWriter(cliMsg.code)
+	return &cliMsg
 }
 
 func (a *App) exitWithMsg(messageType messageType, command CommandInfo, data map[string]string) error {
-	return a.exit(newCLIMessage(0, "", messageType, command, data, nil))
+	return a.exit(&CLIMessage{
+		messageType: messageType,
+		command:     command,
+		data:        data,
+	})
 }
 
-func (a *App) exitWithErr(err error, defaultCode int) error {
+func (a *App) exitWithErr(err error, code int) error {
 	if e, ok := err.(*CLIMessage); ok {
-		defaultCode = e.code
+		code = e.code
 	}
-	return a.exit(newCLIMessage(defaultCode, err.Error(), msgNone, nil, nil, nil))
+	return a.exit(&CLIMessage{
+		code:    code,
+		message: err.Error(),
+	})
 }
