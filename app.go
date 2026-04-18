@@ -108,26 +108,11 @@ func (a *App) WithMaxArg(max int) *App {
 func (a *App) WithConfig(config AppConfig) *App {
 	if config.HelpFlag != nil {
 		config.HelpFlag.setRole(flagHelp)
-		a.config.HelpFlag = config.HelpFlag
 	}
-
 	if config.VersionFlag != nil {
 		config.VersionFlag.setRole(flagVersion)
-		a.config.VersionFlag = config.VersionFlag
 	}
-
-	if config.CustomMessages != nil {
-		a.config.CustomMessages = config.CustomMessages
-	}
-
-	if config.Stdout != nil {
-		a.config.Stdout = config.Stdout
-	}
-
-	if config.Stderr != nil {
-		a.config.Stderr = config.Stderr
-	}
-
+	a.config = config
 	return a
 }
 

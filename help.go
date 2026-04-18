@@ -271,6 +271,10 @@ func (a *App) writeFooter(sb *strings.Builder) {
 }
 
 func flagDisplayName(f FlagInfo, dash bool) string {
+	if f == nil {
+		return ""
+	}
+
 	name := f.Name()
 
 	if name == "" {
@@ -289,6 +293,10 @@ func flagDisplayName(f FlagInfo, dash bool) string {
 }
 
 func commandDisplayName(c CommandInfo) string {
+	if c == nil {
+		return ""
+	}
+
 	if c.Name() == "" {
 		return c.Alias()
 	}
