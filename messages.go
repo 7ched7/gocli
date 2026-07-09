@@ -209,18 +209,20 @@ func msgUnexpectedArgument(msgCtx MessageContext) error {
 func msgTooFewArguments(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: too few arguments; expected at least %d, but got %s",
-		msgCtx.msg.command.MinArg(),
-		msgCtx.msg.data["number"],
+		"error: argument '%s' expects at least %s value(s), but got %s",
+		msgCtx.msg.data["name"],
+		msgCtx.msg.data["min"],
+		msgCtx.msg.data["got"],
 	)
 }
 
 func msgTooManyArguments(msgCtx MessageContext) error {
 	return Exitf(
 		exitUsage,
-		"error: too many arguments; expected at most %d, but got %s",
-		msgCtx.msg.command.MaxArg(),
-		msgCtx.msg.data["number"],
+		"error: argument '%s' expects at most %s value(s), but got %s",
+		msgCtx.msg.data["name"],
+		msgCtx.msg.data["max"],
+		msgCtx.msg.data["got"],
 	)
 }
 

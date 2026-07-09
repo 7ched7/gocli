@@ -9,7 +9,7 @@ import (
 // Context represents the runtime context of a command execution.
 // It includes arguments, parsed flags, and references to the app and command.
 type Context struct {
-	args    []string
+	args    map[string]ArgumentInfo
 	flags   map[string]FlagInfo
 	app     AppInfo
 	command CommandInfo
@@ -21,8 +21,11 @@ func (c *Context) App() AppInfo { return c.app }
 // Command returns the executed command.
 func (c *Context) Command() CommandInfo { return c.command }
 
-// Args returns the positional arguments passed to the command.
-func (c *Context) Args() []string { return c.args }
+// Args returns all arguments as key-value pairs.
+func (c *Context) Args() map[string]ArgumentInfo { return c.args }
+
+// Arg returns the argument with the given name.
+func (c *Context) Arg(name string) ArgumentInfo { return c.args[name] }
 
 // Flags returns all parsed flags as key-value pairs.
 func (c *Context) Flags() map[string]FlagInfo { return c.flags }

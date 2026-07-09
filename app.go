@@ -20,9 +20,8 @@ type AppInfo interface {
 	Version() string                    // Version returns the version of the application.
 	Description() string                // Description returns the description of the application.
 	Commands() []CommandInfo            // Commands returns all registered top-level commands.
+	Arguments() []ArgumentInfo          // Arguments returns all registered arguments.
 	GlobalFlags() []FlagInfo            // GlobalFlags returns all registered global flags.
-	MinArg() int                        // MinArg returns the minimum number of positional arguments.
-	MaxArg() int                        // MaxArg returns the maximum number of positional arguments.
 	Config() AppConfig                  // Config returns the configuration settings of the application.
 	Help() string                       // Help generates and returns the global help menu for the application.
 	CommandHelp(cmd CommandInfo) string // CommandHelp generates and returns a help menu for a specific command.
@@ -68,11 +67,7 @@ func (a *App) RunWithArgs(args []string) error {
 // NewApp creates and returns a new App instance with the given name.
 func NewApp(name string) *App {
 	return &App{
-		root: &Command{
-			name:        name,
-			subcommands: []CommandInfo{},
-			flags:       []FlagInfo{},
-		},
+		root:   NewCommand(name),
 		config: DefaultAppConfig(),
 	}
 }
@@ -89,18 +84,6 @@ func (a *App) WithVersion(version string) *App {
 // The description is shown in help menu.
 func (a *App) WithDescription(description string) *App {
 	a.root.long = description
-	return a
-}
-
-// WithMinArg sets the minimum number of positional arguments required by the application.
-func (a *App) WithMinArg(min int) *App {
-	a.root.minArg = min
-	return a
-}
-
-// WithMaxArg sets the maximum number of positional arguments allowed for the application.
-func (a *App) WithMaxArg(max int) *App {
-	a.root.maxArg = max
 	return a
 }
 
@@ -129,6 +112,12 @@ func (a *App) AddCommand(commands ...*Command) *App {
 	return a
 }
 
+// AddArgument registers arguments to the application.
+func (a *App) AddArgument(arguments ...ArgumentInfo) *App {
+	a.root.AddArgument(arguments...)
+	return a
+}
+
 // AddGlobalFlag registers global flags to the application.
 // Global flags apply to all commands.
 func (a *App) AddGlobalFlag(flags ...FlagInfo) *App {
@@ -151,13 +140,8 @@ func (a *App) Commands() []CommandInfo { return a.root.subcommands }
 // GlobalFlags returns all registered global flags.
 func (a *App) GlobalFlags() []FlagInfo { return a.root.flags }
 
-// MinArg returns the minimum number of positional arguments required by the application.
-// If not set, it returns 0.
-func (a *App) MinArg() int { return a.root.minArg }
-
-// MaxArg returns the maximum number of positional arguments allowed for the application.
-// If not set, it returns 0.
-func (a *App) MaxArg() int { return a.root.maxArg }
+// Arguments returns all registered arguments.
+func (a *App) Arguments() []ArgumentInfo { return a.root.arguments }
 
 // Config returns the configuration settings of the application.
 func (a *App) Config() AppConfig { return a.config }

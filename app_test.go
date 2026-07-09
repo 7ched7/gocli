@@ -31,8 +31,8 @@ func TestApp(t *testing.T) {
 		{"long flag with equal sign", []string{"message", "Hi", "--to=Ben"}, "Hey Ben! Hi", 0},
 		{"flag parse error", []string{"--verbose=tru"}, "error: invalid value 'tru': expected boolean", 2},
 		{"unexpected argument", []string{"math", "mul", "0"}, "error: unexpected argument: '0'", 2},
-		{"min argument failure", []string{"message", "--to=Ben"}, "error: too few arguments; expected at least 1, but got 0", 2},
-		{"max argument failure", []string{"message", "--to=Ben", "Hello", "extra"}, "error: too many arguments; expected at most 1, but got 2", 2},
+		{"min argument failure", []string{"message", "--to=Ben"}, "error: argument 'message' expects at least 1 value(s), but got 0", 2},
+		{"max argument failure", []string{"message", "--to=Ben", "Hello", "extra"}, "error: argument 'message' expects at most 1 value(s), but got 2", 2},
 		{"missing subcommand", []string{"math"}, "error: a subcommand is required for command 'math'", 2},
 		{"invalid subcommand", []string{"math", "asd"}, "error: unknown command: 'asd'", 2},
 		{"multiple arguments", []string{"math", "add", "2", "2"}, "2 + 2 = 4", 0},
@@ -41,10 +41,10 @@ func TestApp(t *testing.T) {
 		{"string slice", []string{"math", "mul", "--numbers=1,2,3", "-n4,5"}, "120", 0},
 	}
 
-	app := exampleApp()
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			app := exampleApp()
+
 			var out bytes.Buffer
 			w := io.MultiWriter(io.Discard, &out)
 
@@ -80,12 +80,11 @@ func exampleApp() *App {
 		WithAlias("msg").
 		WithShort("Send a message").
 		WithLong("Send a message to someone").
-		WithMinArg(1).
-		WithMaxArg(1).
+		AddArgument(NewArgument("message")).
 		AddFlag(NewStringFlagVar("to", &defaultName).WithAlias("t").WithDescription("Name to send a message to")).
 		WithAction(func(ctx *Context) error {
 			name := ctx.String("to")
-			text := ctx.Args()[0]
+			text := ctx.Arg("message").First()
 			return Exitf(0, "Hey %s! %s\n", name, text)
 		})
 
@@ -97,11 +96,11 @@ func exampleApp() *App {
 		AddSubcommand(
 			NewCommand("add").
 				WithShort("Adds two numbers").
-				WithMinArg(2).
-				WithMaxArg(2).
+				AddArgument(NewArgument("number").WithRange(2, 2)).
 				WithAction(func(ctx *Context) error {
-					a := ctx.Args()[0]
-					b := ctx.Args()[1]
+					numbers := ctx.Arg("number").All()
+					a := numbers[0]
+					b := numbers[1]
 					return Exitf(0, "%s + %s = %d\n", a, b, atoi(a)+atoi(b))
 				}))
 
@@ -118,8 +117,7 @@ func exampleApp() *App {
 					return Exitf(0, "%d", result)
 				}))
 
-	app.AddCommand(messageCmd)
-	app.AddCommand(mathCmd)
+	app.AddCommand(messageCmd, mathCmd)
 
 	return app
 }

@@ -158,13 +158,16 @@ func wrap(text string, indent int, leftExceeds bool) string {
 	var currLine strings.Builder
 
 	if leftExceeds {
-		result.WriteString("\n" + strings.Repeat(" ", indent))
+		result.WriteString("\n")
+		result.WriteString(strings.Repeat(" ", indent))
 	}
 
 	for _, word := range words {
 		// Start a new line if it exceeds width
 		if currLine.Len()+len(word)+1 > tWidth-indent {
-			result.WriteString(currLine.String() + "\n" + strings.Repeat(" ", indent))
+			result.WriteString(currLine.String())
+			result.WriteString("\n")
+			result.WriteString(strings.Repeat(" ", indent))
 			currLine.Reset()
 		}
 
@@ -188,10 +191,11 @@ func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
 	hasCommand := (isRoot && len(cmd.Subcommands()) > 0) || (!isRoot && len(cmd.Subcommands()) > 0)
 	hasCmdFlag := !isRoot && len(cmd.Flags()) > 0
 	hasGlobalFlag := len(a.root.flags) > 0
-	hasArg := !(cmd.MinArg() == 0 && cmd.MaxArg() == 0)
+	hasArg := len(cmd.Arguments()) > 0
 
 	writeBase := func() {
-		sb.WriteString("  " + a.root.name)
+		sb.WriteString("  ")
+		sb.WriteString(a.root.name)
 
 		if hasGlobalFlag {
 			sb.WriteString(" [global flags]")
@@ -205,17 +209,27 @@ func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
 	}
 
 	writeArgs := func() {
-		if cmd.MinArg() == 0 {
-			if cmd.MaxArg() == 1 {
-				sb.WriteString(" [arg]")
+		for _, a := range cmd.Arguments() {
+			if a.Min() == 0 {
+				if a.Max() == 1 {
+					sb.WriteString(" [")
+					sb.WriteString(a.Name())
+					sb.WriteString("]")
+				} else {
+					sb.WriteString(" [")
+					sb.WriteString(a.Name())
+					sb.WriteString("]...")
+				}
 			} else {
-				sb.WriteString(" [arg]...")
-			}
-		} else {
-			if cmd.MaxArg() == 1 {
-				sb.WriteString(" <arg>")
-			} else {
-				sb.WriteString(" <arg>...")
+				if a.Max() == 1 {
+					sb.WriteString(" <")
+					sb.WriteString(a.Name())
+					sb.WriteString(">")
+				} else {
+					sb.WriteString(" <")
+					sb.WriteString(a.Name())
+					sb.WriteString(">...")
+				}
 			}
 		}
 	}
@@ -224,7 +238,7 @@ func (a *App) writeUsage(sb *strings.Builder, cmd CommandInfo) {
 	writeBase()
 
 	if hasCommand {
-		if cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
+		if cmd.action() == nil && !hasArg {
 			sb.WriteString(" <command>")
 		} else {
 			sb.WriteString(" [command]")
@@ -244,7 +258,8 @@ func writeDescription(sb *strings.Builder, text string) {
 	if text == "" {
 		return
 	}
-	sb.WriteString("\n\n" + wrap(text, 0, false))
+	sb.WriteString("\n\n")
+	sb.WriteString(wrap(text, 0, false))
 }
 
 func writeSection(sb *strings.Builder, title string, rows []row) {
@@ -252,7 +267,9 @@ func writeSection(sb *strings.Builder, title string, rows []row) {
 		return
 	}
 	maxKeyLen := getMaxKeyLen(rows)
-	sb.WriteString("\n\n" + title + ":")
+	sb.WriteString("\n\n")
+	sb.WriteString(title)
+	sb.WriteString(":")
 	for _, r := range rows {
 		leftExceeds := r.leftWidth > maxKeyWidth
 		sb.WriteString(writeRow(r.left, r.right, leftExceeds, maxKeyLen))

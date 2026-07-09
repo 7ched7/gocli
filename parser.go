@@ -6,6 +6,7 @@ import (
 )
 
 type parser struct {
+	rawArgs          []string
 	positionalOnly   bool
 	helpRequested    bool
 	versionRequested bool
@@ -29,12 +30,12 @@ func (a *App) handler(args []string) error {
 }
 
 func (a *App) parse(args []string) (*Context, error) {
-	p := &parser{}
+	p := &parser{rawArgs: []string{}}
 
 	ctx := &Context{
 		app:     a,
 		command: a.root,
-		args:    []string{},
+		args:    map[string]ArgumentInfo{},
 		flags:   map[string]FlagInfo{},
 	}
 
@@ -47,7 +48,7 @@ func (a *App) parse(args []string) (*Context, error) {
 		arg := args[i]
 
 		if p.positionalOnly {
-			ctx.args = append(ctx.args, arg)
+			p.rawArgs = append(p.rawArgs, arg)
 			continue
 		}
 
@@ -62,7 +63,7 @@ func (a *App) parse(args []string) (*Context, error) {
 
 		// Positional argument
 		if !strings.HasPrefix(arg, "-") {
-			if err := a.handleArgument(ctx, arg); err != nil {
+			if err := a.handleArgument(p, ctx, arg); err != nil {
 				return nil, err
 			}
 			continue
@@ -85,22 +86,14 @@ func (a *App) parse(args []string) (*Context, error) {
 		i = newi
 	}
 
-	cmd := ctx.command
-
-	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
-		return nil, a.exitWithMsg(MsgNoCommand, cmd, nil)
-	}
-
-	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
-		return nil, a.exitWithMsg(MsgSubcommandRequired, cmd, map[string]string{
-			"command": commandDisplayName(cmd),
-		})
+	if err := a.validateArguments(p, ctx); err != nil {
+		return nil, err
 	}
 
 	return ctx, nil
 }
 
-func (a *App) handleArgument(ctx *Context, arg string) error {
+func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 	isCmd := false
 
 	if len(ctx.args) == 0 {
@@ -116,13 +109,13 @@ func (a *App) handleArgument(ctx *Context, arg string) error {
 
 	if !isCmd {
 		if ((cmd == a.root && cmd.action() == nil) || cmd != a.root && len(cmd.Subcommands()) > 0) &&
-			cmd.MinArg() == 0 && cmd.MaxArg() == 0 {
+			len(cmd.Arguments()) == 0 {
 			return a.exitWithMsg(MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
 
-		ctx.args = append(ctx.args, arg)
+		p.rawArgs = append(p.rawArgs, arg)
 	} else {
 		// Flag values mapping
 		for _, f := range cmd.Flags() {
@@ -324,25 +317,77 @@ func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) error {
 	return nil
 }
 
-func (a *App) validate(ctx *Context) error {
-	nargs := len(ctx.args)
+func (a *App) validateArguments(p *parser, ctx *Context) error {
 	cmd := ctx.command
 
-	if cmd.MinArg() == 0 && cmd.MaxArg() == 0 && nargs > 0 {
+	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 && len(cmd.Arguments()) == 0 {
+		return a.exitWithMsg(MsgNoCommand, cmd, nil)
+	}
+
+	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && len(cmd.Arguments()) == 0 {
+		return a.exitWithMsg(MsgSubcommandRequired, cmd, map[string]string{
+			"command": commandDisplayName(cmd),
+		})
+	}
+
+	if len(cmd.Arguments()) == 0 && len(p.rawArgs) > 0 {
 		return a.exitWithMsg(MsgUnexpectedArgument, cmd, map[string]string{
-			"argument": ctx.args[0],
+			"argument": p.rawArgs[0],
 		})
 	}
-	if cmd.MinArg() > 0 && nargs < cmd.MinArg() {
-		return a.exitWithMsg(MsgTooFewArguments, cmd, map[string]string{
-			"number": fmt.Sprint(nargs),
-		})
+
+	if len(cmd.Arguments()) == 0 {
+		return nil
 	}
-	if cmd.MaxArg() > 0 && nargs > cmd.MaxArg() {
-		return a.exitWithMsg(MsgTooManyArguments, cmd, map[string]string{
-			"number": fmt.Sprint(nargs),
-		})
+
+	for i, arg := range cmd.Arguments() {
+		hasArg := i < len(p.rawArgs)
+		remaining := max(len(p.rawArgs)-i, 0)
+
+		errInfo := map[string]string{
+			"name": arg.Name(),
+			"min":  fmt.Sprint(arg.Min()),
+			"max":  fmt.Sprint(arg.Max()),
+			"got":  fmt.Sprint(remaining),
+		}
+
+		if arg.IsVariadic() {
+			if arg.IsRequired() && arg.Min() > remaining {
+				return a.exitWithMsg(MsgTooFewArguments, cmd, errInfo)
+			}
+
+			if arg.Max() >= 0 && arg.Max() < remaining {
+				return a.exitWithMsg(MsgTooManyArguments, cmd, errInfo)
+			}
+
+			if hasArg {
+				arg.set(p.rawArgs[i:]...)
+			}
+
+			ctx.args[arg.Name()] = arg
+			break
+		}
+
+		if arg.IsRequired() && !hasArg {
+			return a.exitWithMsg(MsgTooFewArguments, cmd, errInfo)
+		}
+
+		if i == len(cmd.Arguments())-1 && remaining > 1 {
+			return a.exitWithMsg(MsgTooManyArguments, cmd, errInfo)
+		}
+
+		if hasArg {
+			arg.set(p.rawArgs[i])
+		}
+
+		ctx.args[arg.Name()] = arg
 	}
+
+	return nil
+}
+
+func (a *App) validate(ctx *Context) error {
+	cmd := ctx.command
 
 	for _, f := range ctx.flags {
 		if f.IsRequired() && !f.IsSet() {
