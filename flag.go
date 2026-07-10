@@ -18,22 +18,23 @@ type Flag[T any] struct {
 	description  string
 	metavar      string
 	isRequired   bool
-	validator    func(ctx *Context, value T) error
+	validators   []func(ctx *Context, value T) error
 	isSet        bool
 	r            flagRole
 }
 
 // FlagInfo provides access to flag metadata.
 type FlagInfo interface {
-	Name() string                // Name returns the name of the flag.
-	Alias() string               // Alias returns the optional alias of the flag.
-	Value() FlagValue            // Value returns the parsed value of the flag.
-	Description() string         // Description returns the description of the flag.
-	DefaultValue() any           // DefaultValue returns the default value of the flag.
-	IsRequired() bool            // IsRequired returns whether the flag is required.
-	Metavar() string             // Metavar returns the metavariable of the flag.
-	Validate(ctx *Context) error // Validate runs the flag validator function, if set.
-	IsSet() bool                 // IsSet returns whether the flag is set.
+	Name() string                                      // Name returns the name of the flag.
+	Alias() string                                     // Alias returns the optional alias of the flag.
+	Value() FlagValue                                  // Value returns the parsed value of the flag.
+	DefaultValue() any                                 // DefaultValue returns the default value of the flag.
+	Description() string                               // Description returns the description of the flag.
+	Metavar() string                                   // Metavar returns the metavariable of the flag.
+	IsRequired() bool                                  // IsRequired returns whether the flag is required.
+	Validators() []func(ctx *Context, value any) error // Validators returns a list of validation functions defined for the flag.
+	Validate(ctx *Context) error                       // Validate runs the validator functions defined for the flag.
+	IsSet() bool                                       // IsSet returns whether the flag is set.
 	FlagValueGetter
 
 	set()
@@ -194,12 +195,6 @@ func (f *Flag[T]) WithAlias(alias string) *Flag[T] {
 	return f
 }
 
-// WithRequired sets the flag to required.
-func (f *Flag[T]) WithRequired() *Flag[T] {
-	f.isRequired = true
-	return f
-}
-
 // WithDescription sets the description for the flag.
 // This is shown in flags section within help menu.
 func (f *Flag[T]) WithDescription(description string) *Flag[T] {
@@ -214,9 +209,15 @@ func (f *Flag[T]) WithMetavar(metavar string) *Flag[T] {
 	return f
 }
 
-// WithValidator registers a validation function for the flag.
-func (f *Flag[T]) WithValidator(fn func(ctx *Context, value T) error) *Flag[T] {
-	f.validator = fn
+// WithRequired sets the flag to required.
+func (f *Flag[T]) WithRequired() *Flag[T] {
+	f.isRequired = true
+	return f
+}
+
+// WithValidator registers validation functions to the flag.
+func (f *Flag[T]) WithValidator(fn ...func(ctx *Context, value T) error) *Flag[T] {
+	f.validators = append(f.validators, fn...)
 	return f
 }
 
@@ -224,7 +225,6 @@ func (f *Flag[T]) WithValidator(fn func(ctx *Context, value T) error) *Flag[T] {
 func (f *Flag[T]) Name() string { return f.name }
 
 // Alias returns the alias of the flag.
-// If not set, it returns an empty string.
 func (f *Flag[T]) Alias() string { return f.alias }
 
 // Value returns the value of the flag.
@@ -233,27 +233,53 @@ func (f *Flag[T]) Value() FlagValue { return f.value }
 // DefaultValue returns the default value of the flag.
 func (f *Flag[T]) DefaultValue() any { return f.defaultValue }
 
-// IsRequired returns whether the flag is required.
-func (f *Flag[T]) IsRequired() bool { return f.isRequired }
-
 // Description returns the description of the flag.
-// If not set, it returns an empty string.
 func (f *Flag[T]) Description() string { return f.description }
 
 // Metavar returns the metavariable of the flag.
 func (f *Flag[T]) Metavar() string { return f.metavar }
 
-// Validate runs the flag validator function, if set.
+// IsRequired returns whether the flag is required.
+func (f *Flag[T]) IsRequired() bool { return f.isRequired }
+
+// Validators returns a list of validation functions defined for the flag.
+func (f *Flag[T]) Validators() []func(ctx *Context, value any) error {
+	if f.validators == nil {
+		return nil
+	}
+
+	out := make([]func(ctx *Context, value any) error, 0, len(f.validators))
+	for _, v := range f.validators {
+		vv := v
+		out = append(out, func(ctx *Context, value any) error {
+			return vv(ctx, value.(T))
+		})
+	}
+	return out
+}
+
+// Validate runs the validator functions defined for the flag.
 func (f *Flag[T]) Validate(ctx *Context) error {
-	if f.validator == nil {
+	if f.validators == nil {
 		return nil
 	}
 
 	switch val := f.value.(type) {
 	case T:
-		return f.validator(ctx, val)
+		for _, v := range f.validators {
+			if err := v(ctx, val); err != nil {
+				return err
+			}
+		}
+		return nil
 	case FlagValue:
-		return f.validator(ctx, val.Get().(T))
+		got := val.Get().(T)
+		for _, v := range f.validators {
+			if err := v(ctx, got); err != nil {
+				return err
+			}
+		}
+		return nil
 	default:
 		panic("invalid type")
 	}
@@ -272,14 +298,14 @@ func (f *Flag[T]) Int() int {
 	return f.Value().Get().(int)
 }
 
-// Float64 returns the value of the flag as float64.
-func (f *Flag[T]) Float64() float64 {
-	return f.Value().Get().(float64)
-}
-
 // Bool returns the value of the flag as bool.
 func (f *Flag[T]) Bool() bool {
 	return f.Value().Get().(bool)
+}
+
+// Float64 returns the value of the flag as float64.
+func (f *Flag[T]) Float64() float64 {
+	return f.Value().Get().(float64)
 }
 
 // StringSlice returns the value of the flag as []string.
