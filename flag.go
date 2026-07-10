@@ -23,13 +23,6 @@ type Flag[T any] struct {
 	r            flagRole
 }
 
-// FlagValue defines an interface for all flag values.
-type FlagValue interface {
-	Set(value string) error // Set parses and assigns the given string to the underlying typed value.
-	Get() any               // Get returns the underlying typed value.
-	String() string         // String returns the string representation of the value.
-}
-
 // FlagInfo provides access to flag metadata.
 type FlagInfo interface {
 	Name() string                // Name returns the name of the flag.
@@ -41,10 +34,27 @@ type FlagInfo interface {
 	Metavar() string             // Metavar returns the metavariable of the flag.
 	Validate(ctx *Context) error // Validate runs the flag validator function, if set.
 	IsSet() bool                 // IsSet returns whether the flag is set.
+	FlagValueGetter
 
 	set()
 	setRole(role flagRole)
 	role() flagRole
+}
+
+// FlagValue defines an interface for all flag values.
+type FlagValue interface {
+	Set(value string) error // Set parses and assigns the given string to the underlying typed value.
+	Get() any               // Get returns the underlying typed value.
+	String() string         // String returns the string representation of the value.
+}
+
+// FlagValueGetter defines an interface for retrieving typed flag values.
+type FlagValueGetter interface {
+	String() string        // String returns the value of the flag as string.
+	Int() int              // Int returns the value of the flag as int.
+	Bool() bool            // Bool returns the value of the flag as bool.
+	Float64() float64      // Float64 returns the value of the flag as float64.
+	StringSlice() []string // StringSlice returns the value of the flag as []string.
 }
 
 // NewStringFlag creates a new string flag with the given name and default value.
@@ -251,6 +261,31 @@ func (f *Flag[T]) Validate(ctx *Context) error {
 
 // IsSet returns whether the flag is set.
 func (f *Flag[T]) IsSet() bool { return f.isSet }
+
+// String returns the value of the flag as string.
+func (f *Flag[T]) String() string {
+	return f.Value().Get().(string)
+}
+
+// Int returns the value of the flag as int.
+func (f *Flag[T]) Int() int {
+	return f.Value().Get().(int)
+}
+
+// Float64 returns the value of the flag as float64.
+func (f *Flag[T]) Float64() float64 {
+	return f.Value().Get().(float64)
+}
+
+// Bool returns the value of the flag as bool.
+func (f *Flag[T]) Bool() bool {
+	return f.Value().Get().(bool)
+}
+
+// StringSlice returns the value of the flag as []string.
+func (f *Flag[T]) StringSlice() []string {
+	return f.Value().Get().([]string)
+}
 
 func (f *Flag[T]) set()               { f.isSet = true }
 func (f *Flag[T]) setRole(r flagRole) { f.r = r }

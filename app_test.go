@@ -83,8 +83,8 @@ func exampleApp() *App {
 		AddArgument(NewArgument("message")).
 		AddFlag(NewStringFlagVar("to", &defaultName).WithAlias("t").WithDescription("Name to send a message to")).
 		WithAction(func(ctx *Context) error {
-			name := ctx.String("to")
-			text := ctx.Arg("message").First()
+			name := ctx.Flag("to").String()
+			text := ctx.Arg("message").Get(0)
 			return Exitf(0, "Hey %s! %s\n", name, text)
 		})
 
@@ -111,7 +111,7 @@ func exampleApp() *App {
 				AddFlag(NewStringSliceFlag("numbers", []string{}).WithAlias("n").WithDescription("Number list to multiply")).
 				WithAction(func(ctx *Context) error {
 					result := 1
-					for _, n := range ctx.StringSlice("numbers") {
+					for _, n := range ctx.Flag("numbers").StringSlice() {
 						result *= atoi(n)
 					}
 					return Exitf(0, "%d", result)

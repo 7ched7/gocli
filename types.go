@@ -9,10 +9,10 @@ import (
 // Context represents the runtime context of a command execution.
 // It includes arguments, parsed flags, and references to the app and command.
 type Context struct {
-	args    map[string]ArgumentInfo
-	flags   map[string]FlagInfo
 	app     AppInfo
 	command CommandInfo
+	args    map[string]ArgumentInfo
+	flags   map[string]FlagInfo
 }
 
 // App returns the application instance.
@@ -32,39 +32,6 @@ func (c *Context) Flags() map[string]FlagInfo { return c.flags }
 
 // Flag returns the flag with the given name.
 func (c *Context) Flag(name string) FlagInfo { return c.flags[name] }
-
-// Lookup returns the FlagValue interface of the flag with the given name.
-func (c *Context) Lookup(name string) FlagValue { return c.Flag(name).Value() }
-
-// String returns the named flag as string.
-// It panics if not found or invalid type.
-func (c *Context) String(name string) string {
-	return c.Lookup(name).Get().(string)
-}
-
-// Int returns the named flag as int.
-// It panics if not found or invalid type.
-func (c *Context) Int(name string) int {
-	return c.Lookup(name).Get().(int)
-}
-
-// Float64 returns the named flag as float64.
-// It panics if not found or invalid type.
-func (c *Context) Float64(name string) float64 {
-	return c.Lookup(name).Get().(float64)
-}
-
-// Bool returns the named flag as bool.
-// It panics if not found or invalid type.
-func (c *Context) Bool(name string) bool {
-	return c.Lookup(name).Get().(bool)
-}
-
-// StringSlice returns the named flag as []string.
-// It panics if not found or invalid type.
-func (c *Context) StringSlice(name string) []string {
-	return c.Lookup(name).Get().([]string)
-}
 
 /*
 ------------------------------
