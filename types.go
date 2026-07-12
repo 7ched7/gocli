@@ -106,6 +106,10 @@ func (b *typeBool) Set(value string) error {
 	*b.value = v
 	return nil
 }
+func (b *typeBool) SetNoArg() error {
+	*b.value = true
+	return nil
+}
 func (b *typeBool) Get() any       { return bool(*b.value) }
 func (b *typeBool) String() string { return fmt.Sprintf("%v", *b.value) }
 

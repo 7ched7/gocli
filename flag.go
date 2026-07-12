@@ -49,6 +49,11 @@ type FlagValue interface {
 	String() string         // String returns the string representation of the value.
 }
 
+// NoArgFlag defines an interface for flags that can be used without an argument.
+type NoArgFlag interface {
+	SetNoArg() error // SetNoArg sets the value of the flag when no argument is provided.
+}
+
 // FlagValueGetter defines an interface for retrieving typed flag values.
 type FlagValueGetter interface {
 	String() string        // String returns the value of the flag as string.

@@ -195,10 +195,11 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 
 		var flagValue string
 
-		switch matchedFlag.Value().(type) {
-		case *typeBool:
-			flagValue = "true"
-		default:
+		if v, ok := matchedFlag.Value().(NoArgFlag); ok {
+			if err := v.SetNoArg(); err != nil {
+				return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+			}
+		} else {
 			if j < len(arg[1:])-1 { // -fvalue
 				flagValue = arg[j+2:]
 			} else if i+1 < len(args) { // -f value
@@ -209,14 +210,16 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 					"flag": flagDisplayName(matchedFlag, true),
 				})
 			}
+
+			if err := matchedFlag.Value().Set(flagValue); err != nil {
+				return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+			}
 		}
 
-		if err := a.handleFlagValue(ctx, matchedFlag, flagValue); err != nil {
-			return i, err
-		}
+		a.registerFlag(ctx, matchedFlag)
 
 		switch matchedFlag.Value().(type) {
-		case *typeBool:
+		case NoArgFlag:
 			continue
 		}
 		break
@@ -243,15 +246,23 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 		return i, err
 	}
 
-	switch matchedFlag.Value().(type) {
-	case *typeBool:
-		if flagValue == "" && !hasEqualSign {
-			flagValue = "true"
+	if hasEqualSign { // --flag=value
+		if err := matchedFlag.Value().Set(flagValue); err != nil {
+			return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
 		}
-	default:
-		if flagValue == "" {
-			if i+1 < len(args) && !hasEqualSign { // --flag value
+	} else {
+		if v, ok := matchedFlag.Value().(NoArgFlag); ok {
+			if err := v.SetNoArg(); err != nil {
+				return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+			}
+		} else {
+			if i+1 < len(args) { // --flag value
 				flagValue = args[i+1]
+
+				if err := matchedFlag.Value().Set(flagValue); err != nil {
+					return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+				}
+
 				i++
 			} else {
 				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
@@ -261,24 +272,9 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 		}
 	}
 
-	if err := a.handleFlagValue(ctx, matchedFlag, flagValue); err != nil {
-		return i, err
-	}
+	a.registerFlag(ctx, matchedFlag)
 
 	return i, nil
-}
-
-func (a *App) handleFlagValue(ctx *Context, matchedFlag FlagInfo, flagValue string) error {
-	if err := matchedFlag.Value().Set(flagValue); err != nil {
-		return a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
-	}
-
-	if matchedFlag.role() != flagHelp && matchedFlag.role() != flagVersion {
-		matchedFlag.set()
-		ctx.flags[flagDisplayName(matchedFlag, false)] = matchedFlag
-	}
-
-	return nil
 }
 
 func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagValue string, err error) error {
@@ -296,6 +292,13 @@ func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagVa
 		return a.exitWithMsg(MsgBoolParseError, cmd, errInfo)
 	default:
 		return a.exitWithErr(err, exitUsage)
+	}
+}
+
+func (a *App) registerFlag(ctx *Context, matchedFlag FlagInfo) {
+	matchedFlag.set()
+	if matchedFlag.role() != flagHelp && matchedFlag.role() != flagVersion {
+		ctx.flags[flagDisplayName(matchedFlag, false)] = matchedFlag
 	}
 }
 
