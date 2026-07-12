@@ -47,9 +47,6 @@ func (m *CLIMessage) Error() string {
 // Code returns the exit code associated with the message.
 func (m *CLIMessage) Code() int { return m.code }
 
-// Message returns the raw text content of the message.
-func (m *CLIMessage) Message() string { return m.message }
-
 // MessageType returns the internal type of the message.
 func (m *CLIMessage) MessageType() messageType { return m.messageType }
 
@@ -92,6 +89,16 @@ func (m *MessageContext) App() AppInfo { return m.app }
 // Msg returns the underlying CLIMessage.
 func (m *MessageContext) Msg() *CLIMessage { return m.msg }
 
+// DefaultMessage returns the default system message.
+func (m *MessageContext) DefaultMessage() string {
+	if fn, ok := defaultMessages[m.msg.messageType]; ok {
+		if err := fn(*m); err != nil {
+			return err.Error()
+		}
+	}
+	return m.msg.message
+}
+
 var defaultMessages MessagesMap = MessagesMap{
 	MsgHelp:               msgHelp,
 	MsgCommandHelp:        msgCommandHelp,
@@ -111,16 +118,15 @@ var defaultMessages MessagesMap = MessagesMap{
 }
 
 func msgHelp(msgCtx MessageContext) error {
-	return Exit(exitOK, msgCtx.app.Help())
+	return fmt.Errorf(msgCtx.app.Help())
 }
 
 func msgCommandHelp(msgCtx MessageContext) error {
-	return Exit(exitOK, msgCtx.app.CommandHelp(msgCtx.msg.command))
+	return fmt.Errorf(msgCtx.app.CommandHelp(msgCtx.msg.command))
 }
 
 func msgVersion(msgCtx MessageContext) error {
-	return Exitf(
-		exitOK,
+	return fmt.Errorf(
 		"%s version %s",
 		msgCtx.app.Name(),
 		msgCtx.app.Version(),
@@ -128,12 +134,11 @@ func msgVersion(msgCtx MessageContext) error {
 }
 
 func msgNoCommand(msgCtx MessageContext) error {
-	return Exit(exitUsage, msgCtx.App().Help())
+	return fmt.Errorf(msgCtx.App().Help())
 }
 
 func msgUnknownCommand(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: unknown command: '%s'%s",
 		msgCtx.msg.data["command"],
 		msgUsage(&msgCtx),
@@ -141,8 +146,7 @@ func msgUnknownCommand(msgCtx MessageContext) error {
 }
 
 func msgSubcommandRequired(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: a subcommand is required for command '%s'%s",
 		msgCtx.msg.data["command"],
 		msgUsage(&msgCtx),
@@ -150,8 +154,7 @@ func msgSubcommandRequired(msgCtx MessageContext) error {
 }
 
 func msgInvalidFlag(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: invalid flag: '%s'%s",
 		msgCtx.msg.data["flag"],
 		msgUsage(&msgCtx),
@@ -159,56 +162,49 @@ func msgInvalidFlag(msgCtx MessageContext) error {
 }
 
 func msgFlagValueMissing(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: a value is required for flag '%s'",
 		msgCtx.msg.data["flag"],
 	)
 }
 
 func msgFlagRequired(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: flag is required: '%s'",
 		msgCtx.msg.data["flag"],
 	)
 }
 
 func msgIntParseError(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: invalid value '%v': expected integer",
 		msgCtx.msg.data["value"],
 	)
 }
 
 func msgFloat64ParseError(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: invalid value '%v': expected float",
 		msgCtx.msg.data["value"],
 	)
 }
 
 func msgBoolParseError(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: invalid value '%v': expected boolean",
 		msgCtx.msg.data["value"],
 	)
 }
 
 func msgUnexpectedArgument(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: unexpected argument: '%s'",
 		msgCtx.msg.data["argument"],
 	)
 }
 
 func msgTooFewArguments(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: argument '%s' expects at least %s value(s), but got %s",
 		msgCtx.msg.data["name"],
 		msgCtx.msg.data["min"],
@@ -217,8 +213,7 @@ func msgTooFewArguments(msgCtx MessageContext) error {
 }
 
 func msgTooManyArguments(msgCtx MessageContext) error {
-	return Exitf(
-		exitUsage,
+	return fmt.Errorf(
 		"error: argument '%s' expects at most %s value(s), but got %s",
 		msgCtx.msg.data["name"],
 		msgCtx.msg.data["max"],
@@ -265,22 +260,17 @@ func (a *App) exit(m *CLIMessage) error {
 		msg: &cliMsg,
 	}
 
-	if fn, ok := defaultMessages[cliMsg.messageType]; fn != nil && ok {
-		if err := fn(msgCtx); err != nil {
-			cliMsg.message, cliMsg.code = getMessageInfo(err, cliMsg.code)
+	fn := defaultMessages[cliMsg.messageType]
+
+	if a.config.CustomMessages != nil {
+		if customFn, ok := a.config.CustomMessages[cliMsg.messageType]; ok && customFn != nil {
+			fn = customFn
 		}
 	}
 
-	// override the default message
-	if a.config.CustomMessages != nil {
-		cliMsg.writer = getWriter(cliMsg.code)
-
-		if fn, ok := a.config.CustomMessages[cliMsg.messageType]; fn != nil && ok {
-			if err := fn(msgCtx); err != nil {
-				cliMsg.message, cliMsg.code = getMessageInfo(err, cliMsg.code)
-			} else {
-				cliMsg.message = ""
-			}
+	if fn != nil {
+		if err := fn(msgCtx); err != nil {
+			cliMsg.message, cliMsg.code = getMessageInfo(err, cliMsg.code)
 		}
 	}
 
@@ -288,20 +278,22 @@ func (a *App) exit(m *CLIMessage) error {
 	return &cliMsg
 }
 
-func (a *App) exitWithMsg(messageType messageType, command CommandInfo, data map[string]string) error {
+func (a *App) exitWithMsg(code int, messageType messageType, command CommandInfo, data map[string]string) error {
 	return a.exit(&CLIMessage{
+		code:        code,
 		messageType: messageType,
 		command:     command,
 		data:        data,
 	})
 }
 
-func (a *App) exitWithErr(err error, code int) error {
+func (a *App) exitWithErr(code int, err error, command CommandInfo) error {
 	if e, ok := err.(*CLIMessage); ok {
 		code = e.code
 	}
 	return a.exit(&CLIMessage{
 		code:    code,
 		message: err.Error(),
+		command: command,
 	})
 }

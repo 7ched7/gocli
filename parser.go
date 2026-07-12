@@ -110,7 +110,7 @@ func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 	if !isCmd {
 		if ((cmd == a.root && cmd.action() == nil) || cmd != a.root && len(cmd.Subcommands()) > 0) &&
 			len(cmd.Arguments()) == 0 {
-			return a.exitWithMsg(MsgUnknownCommand, cmd, map[string]string{
+			return a.exitWithMsg(exitUsage, MsgUnknownCommand, cmd, map[string]string{
 				"command": arg,
 			})
 		}
@@ -175,7 +175,7 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, e
 	}
 
 	if matchedFlag == nil {
-		return nil, a.exitWithMsg(MsgInvalidFlag, cmd, map[string]string{
+		return nil, a.exitWithMsg(exitUsage, MsgInvalidFlag, cmd, map[string]string{
 			"flag": flagName,
 		})
 	}
@@ -206,7 +206,7 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 				flagValue = args[i+1]
 				i++
 			} else {
-				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
+				return i, a.exitWithMsg(exitUsage, MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": flagDisplayName(matchedFlag, true),
 				})
 			}
@@ -265,7 +265,7 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 
 				i++
 			} else {
-				return i, a.exitWithMsg(MsgFlagValueMissing, ctx.command, map[string]string{
+				return i, a.exitWithMsg(exitUsage, MsgFlagValueMissing, ctx.command, map[string]string{
 					"flag": flagDisplayName(matchedFlag, true),
 				})
 			}
@@ -285,13 +285,13 @@ func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagVa
 
 	switch matchedFlag.Value().(type) {
 	case *typeInt:
-		return a.exitWithMsg(MsgIntParseError, cmd, errInfo)
+		return a.exitWithMsg(exitUsage, MsgIntParseError, cmd, errInfo)
 	case *typeFloat64:
-		return a.exitWithMsg(MsgFloat64ParseError, cmd, errInfo)
+		return a.exitWithMsg(exitUsage, MsgFloat64ParseError, cmd, errInfo)
 	case *typeBool:
-		return a.exitWithMsg(MsgBoolParseError, cmd, errInfo)
+		return a.exitWithMsg(exitUsage, MsgBoolParseError, cmd, errInfo)
 	default:
-		return a.exitWithErr(err, exitUsage)
+		return a.exitWithErr(exitUsage, err, cmd)
 	}
 }
 
@@ -305,15 +305,15 @@ func (a *App) registerFlag(ctx *Context, matchedFlag FlagInfo) {
 func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) error {
 	if cmd == a.root {
 		if p.helpRequested {
-			return a.exitWithMsg(MsgHelp, cmd, nil)
+			return a.exitWithMsg(exitOK, MsgHelp, cmd, nil)
 		}
 
 		if p.versionRequested {
-			return a.exitWithMsg(MsgVersion, cmd, nil)
+			return a.exitWithMsg(exitOK, MsgVersion, cmd, nil)
 		}
 	} else {
 		if p.helpRequested {
-			return a.exitWithMsg(MsgCommandHelp, cmd, nil)
+			return a.exitWithMsg(exitOK, MsgCommandHelp, cmd, nil)
 		}
 	}
 
@@ -324,17 +324,17 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 	cmd := ctx.command
 
 	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 && len(cmd.Arguments()) == 0 {
-		return a.exitWithMsg(MsgNoCommand, cmd, nil)
+		return a.exitWithMsg(exitOK, MsgNoCommand, cmd, nil)
 	}
 
 	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && len(cmd.Arguments()) == 0 {
-		return a.exitWithMsg(MsgSubcommandRequired, cmd, map[string]string{
+		return a.exitWithMsg(exitUsage, MsgSubcommandRequired, cmd, map[string]string{
 			"command": commandDisplayName(cmd),
 		})
 	}
 
 	if len(cmd.Arguments()) == 0 && len(p.rawArgs) > 0 {
-		return a.exitWithMsg(MsgUnexpectedArgument, cmd, map[string]string{
+		return a.exitWithMsg(exitUsage, MsgUnexpectedArgument, cmd, map[string]string{
 			"argument": p.rawArgs[0],
 		})
 	}
@@ -356,11 +356,11 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 
 		if arg.IsVariadic() {
 			if arg.IsRequired() && arg.Min() > remaining {
-				return a.exitWithMsg(MsgTooFewArguments, cmd, errInfo)
+				return a.exitWithMsg(exitUsage, MsgTooFewArguments, cmd, errInfo)
 			}
 
 			if arg.Max() >= 0 && arg.Max() < remaining {
-				return a.exitWithMsg(MsgTooManyArguments, cmd, errInfo)
+				return a.exitWithMsg(exitUsage, MsgTooManyArguments, cmd, errInfo)
 			}
 
 			if hasArg {
@@ -372,11 +372,11 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 		}
 
 		if arg.IsRequired() && !hasArg {
-			return a.exitWithMsg(MsgTooFewArguments, cmd, errInfo)
+			return a.exitWithMsg(exitUsage, MsgTooFewArguments, cmd, errInfo)
 		}
 
 		if i == len(cmd.Arguments())-1 && remaining > 1 {
-			return a.exitWithMsg(MsgTooManyArguments, cmd, errInfo)
+			return a.exitWithMsg(exitUsage, MsgTooManyArguments, cmd, errInfo)
 		}
 
 		if hasArg {
@@ -394,7 +394,7 @@ func (a *App) validate(ctx *Context) error {
 
 	for _, f := range ctx.flags {
 		if f.IsRequired() && !f.IsSet() {
-			return a.exitWithMsg(MsgFlagRequired, cmd, map[string]string{
+			return a.exitWithMsg(exitUsage, MsgFlagRequired, cmd, map[string]string{
 				"flag": flagDisplayName(f, true),
 			})
 		}
@@ -403,7 +403,7 @@ func (a *App) validate(ctx *Context) error {
 	for _, f := range ctx.flags {
 		if f.IsSet() {
 			if err := f.Validate(ctx); err != nil {
-				return a.exitWithErr(err, exitUsage)
+				return a.exitWithErr(exitUsage, err, ctx.command)
 			}
 		}
 	}
@@ -414,7 +414,7 @@ func (a *App) validate(ctx *Context) error {
 func (a *App) run(ctx *Context) error {
 	if ctx.command.action() != nil {
 		if err := ctx.command.action()(ctx); err != nil {
-			return a.exitWithErr(err, exitError)
+			return a.exitWithErr(exitError, err, ctx.command)
 		}
 	}
 
