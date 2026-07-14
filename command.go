@@ -25,17 +25,13 @@ type CommandInfo interface {
 	Flags() []FlagInfo          // Flags returns the list of flags registered for the command.
 	Parent() CommandInfo        // Parent returns the parent command in the hierarchy.
 
+	setParent(parent CommandInfo)
 	action() func(ctx *Context) error
 }
 
 // NewCommand creates a new command with the given name.
 func NewCommand(name string) *Command {
-	return &Command{
-		name:        name,
-		subcommands: []CommandInfo{},
-		arguments:   []ArgumentInfo{},
-		flags:       []FlagInfo{},
-	}
+	return &Command{name: name}
 }
 
 // WithAlias sets the short alias for the command.
@@ -66,10 +62,10 @@ func (c *Command) WithAction(fn func(ctx *Context) error) *Command {
 }
 
 // AddSubcommand registers subcommands to the current command.
-func (c *Command) AddSubcommand(commands ...*Command) *Command {
-	for _, cmd := range commands {
-		cmd.parent = c
-		c.subcommands = append(c.subcommands, cmd)
+func (c *Command) AddSubcommand(commands ...CommandInfo) *Command {
+	for _, sc := range commands {
+		sc.setParent(c)
+		c.subcommands = append(c.subcommands, sc)
 	}
 	return c
 }
@@ -77,9 +73,6 @@ func (c *Command) AddSubcommand(commands ...*Command) *Command {
 // AddArgument registers arguments to the command.
 func (c *Command) AddArgument(arguments ...ArgumentInfo) *Command {
 	for _, a := range arguments {
-		if len(c.arguments) > 0 && c.arguments[len(c.arguments)-1].IsVariadic() {
-			return c
-		}
 		c.arguments = append(c.arguments, a)
 	}
 	return c
@@ -126,4 +119,5 @@ func (c *Command) Parent() CommandInfo {
 	return c.parent
 }
 
+func (c *Command) setParent(parent CommandInfo)     { c.parent = parent }
 func (c *Command) action() func(ctx *Context) error { return c.actionF }

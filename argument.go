@@ -51,18 +51,6 @@ func NewArgumentVar(name string, variable *[]string) *Argument {
 
 // WithRange sets the minimum and maximum number for the argument.
 func (a *Argument) WithRange(min, max int) *Argument {
-	if min < 0 {
-		return a
-	}
-
-	if max != -1 && min > max {
-		return a
-	}
-
-	if min == 0 && max == 0 {
-		return a
-	}
-
 	a.min = min
 	a.max = max
 	return a

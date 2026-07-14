@@ -1,6 +1,7 @@
 package gocli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
@@ -46,7 +47,7 @@ func (a *App) Run() int {
 		return e.code
 	default:
 		fmt.Fprintf(a.config.Stderr, "error: %v\n", err)
-		return 1
+		return exitError
 	}
 }
 
@@ -64,6 +65,18 @@ func (a *App) RunWithArgs(args []string) error {
 	return a.handler(args[1:])
 }
 
+// Verify traverses the application tree, verifies components,
+// and returns a combined error if any occurs.
+func (a *App) Verify() error {
+	if errs := a.verify(); len(errs) > 0 {
+		return fmt.Errorf("verification failed with %d issues:\n%v",
+			len(errs),
+			errors.Join(errs...),
+		)
+	}
+	return nil
+}
+
 // NewApp creates and returns a new App instance with the given name.
 func NewApp(name string) *App {
 	return &App{
@@ -75,7 +88,9 @@ func NewApp(name string) *App {
 // WithVersion sets the version for the application.
 // This value is displayed when the version flag is used.
 func (a *App) WithVersion(version string) *App {
-	a.config.VersionFlag = DefaultVersionFlag()
+	if a.config.VersionFlag == nil {
+		a.config.VersionFlag = DefaultVersionFlag()
+	}
 	a.version = version
 	return a
 }
@@ -107,7 +122,7 @@ func (a *App) WithAction(fn func(ctx *Context) error) *App {
 }
 
 // AddCommand registers top-level commands to the application.
-func (a *App) AddCommand(commands ...*Command) *App {
+func (a *App) AddCommand(commands ...CommandInfo) *App {
 	a.root.AddSubcommand(commands...)
 	return a
 }
@@ -137,11 +152,11 @@ func (a *App) Description() string { return a.root.long }
 // Commands returns all registered top-level commands.
 func (a *App) Commands() []CommandInfo { return a.root.subcommands }
 
-// GlobalFlags returns all registered global flags.
-func (a *App) GlobalFlags() []FlagInfo { return a.root.flags }
-
 // Arguments returns all registered arguments.
 func (a *App) Arguments() []ArgumentInfo { return a.root.arguments }
+
+// GlobalFlags returns all registered global flags.
+func (a *App) GlobalFlags() []FlagInfo { return a.root.flags }
 
 // Config returns the configuration settings of the application.
 func (a *App) Config() AppConfig { return a.config }
