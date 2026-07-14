@@ -20,7 +20,10 @@ func (a *App) Help() string {
 	var sb strings.Builder
 
 	cmdRows := commandsToRows(a.root.subcommands)
-	flagRows := flagsToRows(a.getFlags(a.root))
+	globalFlagRows := flagsToRows(a.root.flags)
+	systemFlagRows := flagsToRows(
+		[]FlagInfo{a.config.HelpFlag, a.config.VersionFlag},
+	)
 
 	// Usage
 	a.writeUsage(&sb, a.root)
@@ -32,7 +35,10 @@ func (a *App) Help() string {
 	writeSection(&sb, "Commands", cmdRows)
 
 	// Global flags
-	writeSection(&sb, "Global Flags", flagRows)
+	writeSection(&sb, "Global Flags", globalFlagRows)
+
+	// System flags
+	writeSection(&sb, "System Flags", systemFlagRows)
 
 	// Footer
 	if len(a.root.subcommands) > 0 {
@@ -48,7 +54,10 @@ func (a *App) CommandHelp(cmd CommandInfo) string {
 	var sb strings.Builder
 
 	cmdRows := commandsToRows(cmd.Subcommands())
-	flagRows := flagsToRows(a.getFlags(cmd))
+	flagRows := flagsToRows(cmd.Flags())
+	systemFlagRows := flagsToRows(
+		[]FlagInfo{a.config.HelpFlag},
+	)
 
 	// Usage
 	a.writeUsage(&sb, cmd)
@@ -62,22 +71,10 @@ func (a *App) CommandHelp(cmd CommandInfo) string {
 	// Flags
 	writeSection(&sb, "Flags", flagRows)
 
+	// System flags
+	writeSection(&sb, "System Flags", systemFlagRows)
+
 	return sb.String()
-}
-
-func (a *App) getFlags(cmd CommandInfo) []FlagInfo {
-	displayFlags := make([]FlagInfo, 0, len(cmd.Flags()))
-	displayFlags = append(displayFlags, cmd.Flags()...)
-
-	if a.config.HelpFlag != nil {
-		displayFlags = append(displayFlags, a.config.HelpFlag)
-	}
-
-	if cmd == a.root && a.config.VersionFlag != nil {
-		displayFlags = append(displayFlags, a.config.VersionFlag)
-	}
-
-	return displayFlags
 }
 
 func commandsToRows(cmds []CommandInfo) []row {
