@@ -21,9 +21,7 @@ func (a *App) Help() string {
 
 	cmdRows := commandsToRows(a.root.subcommands)
 	globalFlagRows := flagsToRows(a.root.flags)
-	systemFlagRows := flagsToRows(
-		[]FlagInfo{a.config.HelpFlag, a.config.VersionFlag},
-	)
+	systemFlagRows := flagsToRows(a.systemFlags(true))
 
 	// Usage
 	a.writeUsage(&sb, a.root)
@@ -55,9 +53,7 @@ func (a *App) CommandHelp(cmd CommandInfo) string {
 
 	cmdRows := commandsToRows(cmd.Subcommands())
 	flagRows := flagsToRows(cmd.Flags())
-	systemFlagRows := flagsToRows(
-		[]FlagInfo{a.config.HelpFlag},
-	)
+	systemFlagRows := flagsToRows(a.systemFlags(false))
 
 	// Usage
 	a.writeUsage(&sb, cmd)
@@ -77,25 +73,29 @@ func (a *App) CommandHelp(cmd CommandInfo) string {
 	return sb.String()
 }
 
+func (a *App) systemFlags(includeVersion bool) []FlagInfo {
+	systemFlags := []FlagInfo{}
+
+	if a.config.HelpFlag != nil {
+		systemFlags = append(systemFlags, a.config.HelpFlag)
+	}
+	if includeVersion && a.config.VersionFlag != nil {
+		systemFlags = append(systemFlags, a.config.VersionFlag)
+	}
+	return systemFlags
+}
+
 func commandsToRows(cmds []CommandInfo) []row {
 	rows := make([]row, 0)
 
 	for _, c := range cmds {
-		if c.Name() == "" && c.Alias() == "" {
-			continue
-		}
+		name := c.Name()
+		alias := c.Alias()
 
-		left := ""
-		if name := c.Name(); name != "" {
-			left += name
-		}
+		left := name
 
-		if c.Name() != "" && c.Alias() != "" {
-			left += ", "
-		}
-
-		if alias := c.Alias(); alias != "" {
-			left += alias
+		if alias != "" {
+			left += ", " + alias
 		}
 
 		rows = append(rows, row{left, c.Short(), len(left)})
@@ -108,35 +108,32 @@ func flagsToRows(flags []FlagInfo) []row {
 	rows := make([]row, 0)
 
 	for _, f := range flags {
-		if f.Name() == "" && f.Alias() == "" {
-			continue
-		}
+		name := f.Name()
+		alias := f.Alias()
+		metavar := f.Metavar()
 
 		left := ""
-		if alias := f.Alias(); alias != "" {
+
+		if alias != "" {
 			left = "-" + alias
 
-			if f.Name() != "" {
+			if name != "" {
 				left += ", "
 			}
 		} else {
 			left = "  "
 
-			if f.Name() != "" {
+			if name != "" {
 				left += "  "
 			}
 		}
 
-		if name := f.Name(); name != "" {
-			left += "--" + f.Name()
+		if name != "" {
+			left += "--" + name
 		}
 
-		switch f.Value().Get().(type) {
-		case bool:
-		default:
-			if f.Metavar() != "" {
-				left += " " + f.Metavar()
-			}
+		if metavar != "" {
+			left += " " + metavar
 		}
 
 		rows = append(rows, row{left, f.Description(), len(left)})
@@ -277,44 +274,27 @@ func (a *App) writeFooter(sb *strings.Builder) {
 	var footer string
 	if a.config.HelpFlag != nil {
 		h := flagDisplayName(a.config.HelpFlag, true)
-		if h != "" {
-			footer = fmt.Sprintf("\n\nUse \"%s <command> %s\" for more information about a command.", a.root.name, h)
-		}
+		footer = fmt.Sprintf("\n\nUse \"%s <command> %s\" for more information about a command.", a.root.name, h)
 	}
 	sb.WriteString(footer)
 }
 
-func flagDisplayName(f FlagInfo, dash bool) string {
-	if f == nil {
-		return ""
-	}
-
+func flagDisplayName(f FlagInfo, includeDash bool) string {
 	name := f.Name()
 
 	if name == "" {
 		alias := f.Alias()
 
-		if dash && alias != "" {
+		if includeDash {
 			return "-" + alias
 		}
 		return alias
 	}
 
-	if dash {
+	if includeDash {
 		return "--" + name
 	}
 	return name
-}
-
-func commandDisplayName(c CommandInfo) string {
-	if c == nil {
-		return ""
-	}
-
-	if c.Name() == "" {
-		return c.Alias()
-	}
-	return c.Name()
 }
 
 func getMaxKeyLen(rows []row) int {

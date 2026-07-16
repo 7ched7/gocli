@@ -222,10 +222,8 @@ func msgTooManyArguments(msgCtx MessageContext) error {
 }
 
 func msgUsage(msgCtx *MessageContext) string {
-	helpFlag := msgCtx.app.Config().HelpFlag
-	h := flagDisplayName(helpFlag, true)
-
-	if h != "" {
+	if msgCtx.app.Config().HelpFlag != nil {
+		h := flagDisplayName(msgCtx.app.Config().HelpFlag, true)
 		return fmt.Sprintf("\nuse '%s' for usage information.", h)
 	}
 	return ""
@@ -262,10 +260,8 @@ func (a *App) exit(m *CLIMessage) error {
 
 	fn := defaultMessages[cliMsg.messageType]
 
-	if a.config.CustomMessages != nil {
-		if customFn, ok := a.config.CustomMessages[cliMsg.messageType]; ok && customFn != nil {
-			fn = customFn
-		}
+	if customFn, ok := a.config.CustomMessages[cliMsg.messageType]; ok && customFn != nil {
+		fn = customFn
 	}
 
 	if fn != nil {

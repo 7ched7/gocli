@@ -68,7 +68,7 @@ func (a *App) verifyFlags(cmd CommandInfo, errs *[]error) {
 }
 
 func (a *App) verifySystemFlags(errs *[]error) {
-	a.verifyFlag(a.root, []FlagInfo{a.config.HelpFlag, a.config.VersionFlag}, false, false, errs)
+	a.verifyFlag(a.root, a.systemFlags(true), false, false, errs)
 }
 
 func (a *App) verifyGlobalFlags(errs *[]error) {

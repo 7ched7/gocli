@@ -1,5 +1,7 @@
 package gocli
 
+import "fmt"
+
 type flagRole int
 
 const (
@@ -136,7 +138,6 @@ func NewBoolFlag(name string, defaultValue bool) *Flag[bool] {
 		name:         name,
 		value:        &typeBool{value: &value},
 		defaultValue: defaultValue,
-		metavar:      "BOOL",
 	}
 }
 
@@ -147,7 +148,6 @@ func NewBoolFlagVar(name string, variable *bool) *Flag[bool] {
 		name:         name,
 		value:        &typeBool{value: variable},
 		defaultValue: defaultValue,
-		metavar:      "BOOL",
 	}
 }
 
@@ -222,7 +222,9 @@ func (f *Flag[T]) WithRequired() *Flag[T] {
 
 // WithValidator registers validation functions to the flag.
 func (f *Flag[T]) WithValidator(fn ...func(ctx *Context, value T) error) *Flag[T] {
-	f.validators = append(f.validators, fn...)
+	for _, v := range fn {
+		f.validators = append(f.validators, v)
+	}
 	return f
 }
 
@@ -249,10 +251,6 @@ func (f *Flag[T]) IsRequired() bool { return f.isRequired }
 
 // Validators returns a list of validation functions defined for the flag.
 func (f *Flag[T]) Validators() []func(ctx *Context, value any) error {
-	if f.validators == nil {
-		return nil
-	}
-
 	out := make([]func(ctx *Context, value any) error, 0, len(f.validators))
 	for _, v := range f.validators {
 		vv := v
@@ -265,10 +263,6 @@ func (f *Flag[T]) Validators() []func(ctx *Context, value any) error {
 
 // Validate runs the validator functions defined for the flag.
 func (f *Flag[T]) Validate(ctx *Context) error {
-	if f.validators == nil {
-		return nil
-	}
-
 	switch val := f.value.(type) {
 	case T:
 		for _, v := range f.validators {
@@ -295,7 +289,7 @@ func (f *Flag[T]) IsSet() bool { return f.isSet }
 
 // String returns the value of the flag as string.
 func (f *Flag[T]) String() string {
-	return f.Value().Get().(string)
+	return fmt.Sprintf("%v", f.Value().Get())
 }
 
 // Int returns the value of the flag as int.

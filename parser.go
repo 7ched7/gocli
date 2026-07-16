@@ -132,10 +132,8 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, e
 	var matchedFlag FlagInfo
 
 	matches := func(flagName string, f FlagInfo) bool {
-		if f != nil {
-			return (f.Name() != "" && flagName == "--"+f.Name()) || (f.Alias() != "" && flagName == "-"+f.Alias())
-		}
-		return false
+		return (f.Name() != "" && flagName == "--"+f.Name()) ||
+			(f.Alias() != "" && flagName == "-"+f.Alias())
 	}
 
 	// Help flag
@@ -166,7 +164,7 @@ func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, e
 
 	// Global flags
 	if matchedFlag == nil {
-		for _, f := range a.root.flags {
+		for _, f := range a.GlobalFlags() {
 			if matches(flagName, f) {
 				matchedFlag = f
 				break
@@ -329,7 +327,7 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 
 	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && len(cmd.Arguments()) == 0 {
 		return a.exitWithMsg(exitUsage, MsgSubcommandRequired, cmd, map[string]string{
-			"command": commandDisplayName(cmd),
+			"command": cmd.Name(),
 		})
 	}
 
