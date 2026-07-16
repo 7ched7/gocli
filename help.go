@@ -110,7 +110,7 @@ func flagsToRows(flags []FlagInfo) []row {
 	for _, f := range flags {
 		name := f.Name()
 		alias := f.Alias()
-		metavar := f.Metavar()
+		placeholder := f.Placeholder()
 
 		left := ""
 
@@ -132,8 +132,8 @@ func flagsToRows(flags []FlagInfo) []row {
 			left += "--" + name
 		}
 
-		if metavar != "" {
-			left += " " + metavar
+		if placeholder != "" {
+			left += " " + placeholder
 		}
 
 		rows = append(rows, row{left, f.Description(), len(left)})

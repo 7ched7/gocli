@@ -18,7 +18,7 @@ type Flag[T any] struct {
 	value        FlagValue
 	defaultValue any
 	description  string
-	metavar      string
+	placeholder  string
 	isRequired   bool
 	validators   []func(ctx *Context, value T) error
 	isSet        bool
@@ -32,7 +32,7 @@ type FlagInfo interface {
 	Value() FlagValue                                  // Value returns the parsed value of the flag.
 	DefaultValue() any                                 // DefaultValue returns the default value of the flag.
 	Description() string                               // Description returns the description of the flag.
-	Metavar() string                                   // Metavar returns the metavariable of the flag.
+	Placeholder() string                               // Placeholder returns the placeholder of the flag.
 	IsRequired() bool                                  // IsRequired returns whether the flag is required.
 	Validators() []func(ctx *Context, value any) error // Validators returns a list of validation functions defined for the flag.
 	Validate(ctx *Context) error                       // Validate runs the validator functions defined for the flag.
@@ -72,7 +72,7 @@ func NewStringFlag(name string, defaultValue string) *Flag[string] {
 		name:         name,
 		value:        &typeString{value: &value},
 		defaultValue: defaultValue,
-		metavar:      "STRING",
+		placeholder:  "STRING",
 	}
 }
 
@@ -83,7 +83,7 @@ func NewStringFlagVar(name string, variable *string) *Flag[string] {
 		name:         name,
 		value:        &typeString{value: variable},
 		defaultValue: defaultValue,
-		metavar:      "STRING",
+		placeholder:  "STRING",
 	}
 }
 
@@ -94,7 +94,7 @@ func NewIntFlag(name string, defaultValue int) *Flag[int] {
 		name:         name,
 		value:        &typeInt{value: &value},
 		defaultValue: defaultValue,
-		metavar:      "INT",
+		placeholder:  "INT",
 	}
 }
 
@@ -105,7 +105,7 @@ func NewIntFlagVar(name string, variable *int) *Flag[int] {
 		name:         name,
 		value:        &typeInt{value: variable},
 		defaultValue: defaultValue,
-		metavar:      "INT",
+		placeholder:  "INT",
 	}
 }
 
@@ -116,7 +116,7 @@ func NewFloatFlag(name string, defaultValue float64) *Flag[float64] {
 		name:         name,
 		value:        &typeFloat64{value: &value},
 		defaultValue: defaultValue,
-		metavar:      "FLOAT",
+		placeholder:  "FLOAT",
 	}
 }
 
@@ -127,7 +127,7 @@ func NewFloatFlagVar(name string, variable *float64) *Flag[float64] {
 		name:         name,
 		value:        &typeFloat64{value: variable},
 		defaultValue: defaultValue,
-		metavar:      "FLOAT",
+		placeholder:  "FLOAT",
 	}
 }
 
@@ -164,7 +164,7 @@ func NewStringSliceFlag(name string, defaultValue []string) *Flag[[]string] {
 		name:         name,
 		value:        &typeStringSlice{value: &value},
 		defaultValue: defaultValue,
-		metavar:      "STRINGS",
+		placeholder:  "STRINGS",
 	}
 }
 
@@ -181,7 +181,7 @@ func NewStringSliceFlagVar(name string, variable *[]string) *Flag[[]string] {
 		name:         name,
 		value:        &typeStringSlice{value: variable},
 		defaultValue: defaultValue,
-		metavar:      "STRINGS",
+		placeholder:  "STRINGS",
 	}
 }
 
@@ -207,10 +207,10 @@ func (f *Flag[T]) WithDescription(description string) *Flag[T] {
 	return f
 }
 
-// WithMetavar sets the metavariable for the flag.
+// WithPlaceholder sets the placeholder for the flag.
 // This is shown next to the flag and indicates the type of the flag value.
-func (f *Flag[T]) WithMetavar(metavar string) *Flag[T] {
-	f.metavar = metavar
+func (f *Flag[T]) WithPlaceholder(placeholder string) *Flag[T] {
+	f.placeholder = placeholder
 	return f
 }
 
@@ -243,8 +243,8 @@ func (f *Flag[T]) DefaultValue() any { return f.defaultValue }
 // Description returns the description of the flag.
 func (f *Flag[T]) Description() string { return f.description }
 
-// Metavar returns the metavariable of the flag.
-func (f *Flag[T]) Metavar() string { return f.metavar }
+// Placeholder returns the placeholder of the flag.
+func (f *Flag[T]) Placeholder() string { return f.placeholder }
 
 // IsRequired returns whether the flag is required.
 func (f *Flag[T]) IsRequired() bool { return f.isRequired }
