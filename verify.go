@@ -63,8 +63,8 @@ func (a *App) verifyCommands(errs *[]error) {
 	walk(a.root.subcommands)
 }
 
-func (a *App) verifyFlags(cmd CommandInfo, errs *[]error) {
-	a.verifyFlag(cmd, cmd.Flags(), true, false, errs)
+func (a *App) verifyFlags(c CommandInfo, errs *[]error) {
+	a.verifyFlag(c, c.Flags(), true, false, errs)
 }
 
 func (a *App) verifySystemFlags(errs *[]error) {
@@ -76,7 +76,7 @@ func (a *App) verifyGlobalFlags(errs *[]error) {
 }
 
 func (a *App) verifyFlag(
-	cmd CommandInfo,
+	c CommandInfo,
 	flags []FlagInfo,
 	checkHelp bool,
 	checkVersion bool,
@@ -91,17 +91,17 @@ func (a *App) verifyFlag(
 		if name == "" && alias == "" {
 			*errs = append(*errs, fmt.Errorf(
 				"flag name and alias cannot both be empty (command: %q)",
-				cmd.Name(),
+				c.Name(),
 			))
 			continue
 		}
 
 		if checkHelp {
-			a.verifyHelpFlag(cmd, name, alias, errs)
+			a.verifyHelpFlag(c, name, alias, errs)
 		}
 
 		if checkVersion {
-			a.verifyVersionFlag(cmd, name, alias, errs)
+			a.verifyVersionFlag(c, name, alias, errs)
 		}
 
 		if name != "" {
@@ -109,7 +109,7 @@ func (a *App) verifyFlag(
 				*errs = append(*errs, fmt.Errorf(
 					"duplicate flag name %q (command %q)",
 					name,
-					cmd.Name(),
+					c.Name(),
 				))
 			}
 
@@ -121,7 +121,7 @@ func (a *App) verifyFlag(
 				*errs = append(*errs, fmt.Errorf(
 					"flag alias %q cannot be longer than 1 character (command %q)",
 					alias,
-					cmd.Name(),
+					c.Name(),
 				))
 			}
 
@@ -129,7 +129,7 @@ func (a *App) verifyFlag(
 				*errs = append(*errs, fmt.Errorf(
 					"duplicate flag alias %q (command %q)",
 					alias,
-					cmd.Name(),
+					c.Name(),
 				))
 			}
 
@@ -138,69 +138,69 @@ func (a *App) verifyFlag(
 	}
 }
 
-func (a *App) verifyHelpFlag(cmd CommandInfo, name, alias string, errs *[]error) {
-	helpFlag := a.config.HelpFlag
+func (a *App) verifyHelpFlag(c CommandInfo, name, alias string, errs *[]error) {
+	f := a.config.HelpFlag
 
-	if helpFlag != nil {
-		if name != "" && helpFlag.Name() != "" && name == helpFlag.Name() {
+	if f != nil {
+		if name != "" && f.Name() != "" && name == f.Name() {
 			*errs = append(*errs, fmt.Errorf(
 				"duplicate system flag name %q (command: %q)",
-				helpFlag.Name(),
-				cmd.Name(),
+				f.Name(),
+				c.Name(),
 			))
 		}
 
-		if alias != "" && helpFlag.Alias() != "" && alias == helpFlag.Alias() {
+		if alias != "" && f.Alias() != "" && alias == f.Alias() {
 			*errs = append(*errs, fmt.Errorf(
 				"duplicate system flag alias %q (command: %q)",
-				helpFlag.Alias(),
-				cmd.Name(),
+				f.Alias(),
+				c.Name(),
 			))
 		}
 	}
 }
 
-func (a *App) verifyVersionFlag(cmd CommandInfo, name, alias string, errs *[]error) {
-	versionFlag := a.config.VersionFlag
+func (a *App) verifyVersionFlag(c CommandInfo, name, alias string, errs *[]error) {
+	f := a.config.VersionFlag
 
-	if versionFlag != nil {
-		if name != "" && versionFlag.Name() != "" && name == versionFlag.Name() {
+	if f != nil {
+		if name != "" && f.Name() != "" && name == f.Name() {
 			*errs = append(*errs, fmt.Errorf(
 				"duplicate system flag name %q (command: %q)",
-				versionFlag.Name(),
-				cmd.Name(),
+				f.Name(),
+				c.Name(),
 			))
 		}
 
-		if alias != "" && versionFlag.Alias() != "" && alias == versionFlag.Alias() {
+		if alias != "" && f.Alias() != "" && alias == f.Alias() {
 			*errs = append(*errs, fmt.Errorf(
 				"duplicate system flag alias %q (command: %q)",
-				versionFlag.Alias(),
-				cmd.Name(),
+				f.Alias(),
+				c.Name(),
 			))
 		}
 	}
 }
 
-func (a *App) verifyArguments(cmd CommandInfo, errs *[]error) {
+func (a *App) verifyArguments(c CommandInfo, errs *[]error) {
 	nameMap := make(map[string]bool)
 
-	for i, arg := range cmd.Arguments() {
+	for i, arg := range c.Arguments() {
 		name := strings.TrimSpace(arg.Name())
 
 		if name == "" {
 			*errs = append(*errs, fmt.Errorf(
 				"argument name cannot be empty (command: %q)",
-				cmd.Name(),
+				c.Name(),
 			))
 			continue
 		}
 
-		if i != len(cmd.Arguments())-1 && arg.IsVariadic() {
+		if i != len(c.Arguments())-1 && arg.IsVariadic() {
 			*errs = append(*errs, fmt.Errorf(
 				"variadic argument %q must be the last argument (command: %q)",
 				arg.Name(),
-				cmd.Name(),
+				c.Name(),
 			))
 		}
 
@@ -208,7 +208,7 @@ func (a *App) verifyArguments(cmd CommandInfo, errs *[]error) {
 			*errs = append(*errs, fmt.Errorf(
 				"duplicate argument name %q (command: %q)",
 				arg.Name(),
-				cmd.Name(),
+				c.Name(),
 			))
 		}
 
@@ -216,7 +216,7 @@ func (a *App) verifyArguments(cmd CommandInfo, errs *[]error) {
 			*errs = append(*errs, fmt.Errorf(
 				"minimum value of argument %q cannot be negative (command: %q)",
 				arg.Name(),
-				cmd.Name(),
+				c.Name(),
 			))
 		}
 
@@ -224,7 +224,7 @@ func (a *App) verifyArguments(cmd CommandInfo, errs *[]error) {
 			*errs = append(*errs, fmt.Errorf(
 				"minimum value of argument %q cannot be greater than maximum value (command: %q)",
 				arg.Name(),
-				cmd.Name(),
+				c.Name(),
 			))
 		}
 
@@ -232,7 +232,7 @@ func (a *App) verifyArguments(cmd CommandInfo, errs *[]error) {
 			*errs = append(*errs, fmt.Errorf(
 				"minimum and maximum values for argument %q cannot both be zero (command: %q)",
 				arg.Name(),
-				cmd.Name(),
+				c.Name(),
 			))
 		}
 

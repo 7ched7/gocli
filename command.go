@@ -10,23 +10,28 @@ type Command struct {
 	subcommands []CommandInfo
 	arguments   []ArgumentInfo
 	flags       []FlagInfo
-	actionF     func(ctx *Context) error
+	action      func(ctx *Context) error
 	parent      CommandInfo
+	app         *App
 }
 
 // CommandInfo provides access to command metadata.
 type CommandInfo interface {
-	Name() string               // Name returns the name of the command.
-	Alias() string              // Alias returns the alias of the command.
-	Short() string              // Short returns the short description of the command.
-	Long() string               // Long returns the long description of the command.
-	Subcommands() []CommandInfo // Subcommands returns all subcommands registered under the command.
-	Arguments() []ArgumentInfo  // Arguments returns the list of arguments registered for the command.
-	Flags() []FlagInfo          // Flags returns the list of flags registered for the command.
-	Parent() CommandInfo        // Parent returns the parent command in the hierarchy.
+	Name() string                     // Name returns the name of the command.
+	Alias() string                    // Alias returns the alias of the command.
+	Short() string                    // Short returns the short description of the command.
+	Long() string                     // Long returns the long description of the command.
+	Subcommands() []CommandInfo       // Subcommands returns all subcommands registered under the command.
+	Arguments() []ArgumentInfo        // Arguments returns the list of arguments registered for the command.
+	Flags() []FlagInfo                // Flags returns the list of flags registered for the command.
+	Action() func(ctx *Context) error // Action returns the action function of the command.
+	Parent() CommandInfo              // Parent returns the parent command in the hierarchy.
+	Help() string                     // Help generates and returns the help menu for the command.
+	Path() string                     // Path returns the execution path of the command.
+	Usage() string                    // Usage returns the usage information of the command.
 
 	setParent(parent CommandInfo)
-	action() func(ctx *Context) error
+	setApp(app *App)
 }
 
 // NewCommand creates a new command with the given name.
@@ -57,14 +62,13 @@ func (c *Command) WithLong(long string) *Command {
 
 // WithAction assigns the function to be executed when the command is run.
 func (c *Command) WithAction(fn func(ctx *Context) error) *Command {
-	c.actionF = fn
+	c.action = fn
 	return c
 }
 
 // AddSubcommand registers subcommands to the current command.
 func (c *Command) AddSubcommand(commands ...CommandInfo) *Command {
 	for _, sc := range commands {
-		sc.setParent(c)
 		c.subcommands = append(c.subcommands, sc)
 	}
 	return c
@@ -110,6 +114,9 @@ func (c *Command) Arguments() []ArgumentInfo { return c.arguments }
 // Flags returns the list of flags registered for the command.
 func (c *Command) Flags() []FlagInfo { return c.flags }
 
+// Action returns the action function of the command.
+func (c *Command) Action() func(ctx *Context) error { return c.action }
+
 // Parent returns the parent command in the hierarchy.
 // If the command has no parent command, it returns nil.
 func (c *Command) Parent() CommandInfo {
@@ -119,5 +126,5 @@ func (c *Command) Parent() CommandInfo {
 	return c.parent
 }
 
-func (c *Command) setParent(parent CommandInfo)     { c.parent = parent }
-func (c *Command) action() func(ctx *Context) error { return c.actionF }
+func (c *Command) setParent(parent CommandInfo) { c.parent = parent }
+func (c *Command) setApp(app *App)              { c.app = app }

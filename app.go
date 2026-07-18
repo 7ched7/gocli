@@ -17,15 +17,14 @@ type App struct {
 
 // AppInfo provides access to application metadata.
 type AppInfo interface {
-	Name() string                       // Name returns the display name of the application.
-	Version() string                    // Version returns the version of the application.
-	Description() string                // Description returns the description of the application.
-	Commands() []CommandInfo            // Commands returns all registered top-level commands.
-	Arguments() []ArgumentInfo          // Arguments returns all registered arguments.
-	GlobalFlags() []FlagInfo            // GlobalFlags returns all registered global flags.
-	Config() AppConfig                  // Config returns the configuration settings of the application.
-	Help() string                       // Help generates and returns the global help menu for the application.
-	CommandHelp(cmd CommandInfo) string // CommandHelp generates and returns a help menu for a specific command.
+	Name() string              // Name returns the display name of the application.
+	Version() string           // Version returns the version of the application.
+	Description() string       // Description returns the description of the application.
+	Commands() []CommandInfo   // Commands returns all registered top-level commands.
+	Arguments() []ArgumentInfo // Arguments returns all registered arguments.
+	GlobalFlags() []FlagInfo   // GlobalFlags returns all registered global flags.
+	Config() AppConfig         // Config returns the configuration settings of the application.
+	Help() string              // Help generates and returns the global help menu for the application.
 }
 
 const (
@@ -68,21 +67,24 @@ func (a *App) RunWithArgs(args []string) error {
 // Verify traverses the application tree, verifies components,
 // and returns a combined error if any occurs.
 func (a *App) Verify() error {
-	if errs := a.verify(); len(errs) > 0 {
-		return fmt.Errorf("verification failed with %d issues:\n%v",
-			len(errs),
-			errors.Join(errs...),
-		)
+	errs := a.verify()
+	if len(errs) == 0 {
+		return nil
 	}
-	return nil
+	return fmt.Errorf("verification failed with %d issues:\n%v",
+		len(errs),
+		errors.Join(errs...),
+	)
 }
 
 // NewApp creates and returns a new App instance with the given name.
 func NewApp(name string) *App {
-	return &App{
+	a := &App{
 		root:   NewCommand(name),
 		config: DefaultAppConfig(),
 	}
+	a.root.setApp(a)
+	return a
 }
 
 // WithVersion sets the version for the application.
@@ -117,14 +119,23 @@ func (a *App) WithConfig(config AppConfig) *App {
 // WithAction assigns the default action to be executed when the application is run
 // without specifying any command.
 func (a *App) WithAction(fn func(ctx *Context) error) *App {
-	a.root.actionF = fn
+	a.root.action = fn
 	return a
 }
 
 // AddCommand registers top-level commands to the application.
 func (a *App) AddCommand(commands ...CommandInfo) *App {
 	a.root.AddSubcommand(commands...)
+	a.bindCommands(a.root, commands...)
 	return a
+}
+
+func (a *App) bindCommands(p CommandInfo, commands ...CommandInfo) {
+	for _, c := range commands {
+		c.setParent(p)
+		c.setApp(a)
+		a.bindCommands(c, c.Subcommands()...)
+	}
 }
 
 // AddArgument registers arguments to the application.

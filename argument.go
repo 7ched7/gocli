@@ -73,13 +73,13 @@ func (a *Argument) IsVariadic() bool { return a.max == -1 || a.max > 1 }
 
 // Get returns the value of the argument with the given index.
 func (a *Argument) Get(index int) string {
-	length := len(*a.value)
+	len := len(*a.value)
 
 	if index < 0 {
-		index = length + index
+		index = len + index
 	}
 
-	if index < 0 || index >= len(*a.value) {
+	if index < 0 || index >= len {
 		return ""
 	}
 	return (*a.value)[index]

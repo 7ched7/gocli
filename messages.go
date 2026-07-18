@@ -69,10 +69,9 @@ func Exit(code int, message string) *CLIMessage {
 
 // Exitf creates a new CLI message with the code and formatted message.
 func Exitf(code int, format string, a ...any) *CLIMessage {
-	message := fmt.Sprintf(format, a...)
 	return &CLIMessage{
 		code:    code,
-		message: message,
+		message: fmt.Sprintf(format, a...),
 	}
 }
 
@@ -122,7 +121,7 @@ func msgHelp(msgCtx MessageContext) error {
 }
 
 func msgCommandHelp(msgCtx MessageContext) error {
-	return fmt.Errorf(msgCtx.app.CommandHelp(msgCtx.msg.command))
+	return fmt.Errorf(msgCtx.msg.command.Help())
 }
 
 func msgVersion(msgCtx MessageContext) error {
@@ -134,7 +133,7 @@ func msgVersion(msgCtx MessageContext) error {
 }
 
 func msgNoCommand(msgCtx MessageContext) error {
-	return fmt.Errorf(msgCtx.App().Help())
+	return fmt.Errorf(msgCtx.app.Help())
 }
 
 func msgUnknownCommand(msgCtx MessageContext) error {
@@ -274,22 +273,22 @@ func (a *App) exit(m *CLIMessage) error {
 	return &cliMsg
 }
 
-func (a *App) exitWithMsg(code int, messageType messageType, command CommandInfo, data map[string]string) error {
+func (a *App) exitWithMsg(code int, mt messageType, c CommandInfo, data map[string]string) error {
 	return a.exit(&CLIMessage{
 		code:        code,
-		messageType: messageType,
-		command:     command,
+		messageType: mt,
+		command:     c,
 		data:        data,
 	})
 }
 
-func (a *App) exitWithErr(code int, err error, command CommandInfo) error {
+func (a *App) exitWithErr(code int, err error, c CommandInfo) error {
 	if e, ok := err.(*CLIMessage); ok {
 		code = e.code
 	}
 	return a.exit(&CLIMessage{
 		code:    code,
 		message: err.Error(),
-		command: command,
+		command: c,
 	})
 }

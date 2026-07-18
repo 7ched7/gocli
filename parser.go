@@ -105,12 +105,12 @@ func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 		}
 	}
 
-	cmd := ctx.command
+	c := ctx.command
 
 	if !isCmd {
-		if ((cmd == a.root && cmd.action() == nil) || cmd != a.root && len(cmd.Subcommands()) > 0) &&
-			len(cmd.Arguments()) == 0 {
-			return a.exitWithMsg(exitUsage, MsgUnknownCommand, cmd, map[string]string{
+		if ((c == a.root && c.Action() == nil) || c != a.root && len(c.Subcommands()) > 0) &&
+			len(c.Arguments()) == 0 {
+			return a.exitWithMsg(exitUsage, MsgUnknownCommand, c, map[string]string{
 				"command": arg,
 			})
 		}
@@ -118,7 +118,7 @@ func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 		p.rawArgs = append(p.rawArgs, arg)
 	} else {
 		// Flag values mapping
-		for _, f := range cmd.Flags() {
+		for _, f := range c.Flags() {
 			if _, ok := ctx.flags[flagDisplayName(f, false)]; !ok {
 				ctx.flags[flagDisplayName(f, false)] = f
 			}
@@ -128,95 +128,95 @@ func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 	return nil
 }
 
-func (a *App) findFlag(p *parser, cmd CommandInfo, flagName string) (FlagInfo, error) {
-	var matchedFlag FlagInfo
+func (a *App) findFlag(p *parser, c CommandInfo, name string) (FlagInfo, error) {
+	var matched FlagInfo
 
-	matches := func(flagName string, f FlagInfo) bool {
-		return (f.Name() != "" && flagName == "--"+f.Name()) ||
-			(f.Alias() != "" && flagName == "-"+f.Alias())
+	matches := func(name string, f FlagInfo) bool {
+		return (f.Name() != "" && name == "--"+f.Name()) ||
+			(f.Alias() != "" && name == "-"+f.Alias())
 	}
 
 	// Help flag
 	f := a.config.HelpFlag
-	if f != nil && matches(flagName, f) {
-		matchedFlag = f
+	if f != nil && matches(name, f) {
+		matched = f
 		p.helpRequested = true
 	}
 
 	// Version flag
-	if matchedFlag == nil && cmd == a.root {
+	if matched == nil && c == a.root {
 		f := a.config.VersionFlag
-		if f != nil && matches(flagName, f) {
-			matchedFlag = f
+		if f != nil && matches(name, f) {
+			matched = f
 			p.versionRequested = true
 		}
 	}
 
 	// Local flags
-	if matchedFlag == nil && cmd != a.root {
-		for _, f := range cmd.Flags() {
-			if matches(flagName, f) {
-				matchedFlag = f
+	if matched == nil && c != a.root {
+		for _, f := range c.Flags() {
+			if matches(name, f) {
+				matched = f
 				break
 			}
 		}
 	}
 
 	// Global flags
-	if matchedFlag == nil {
-		for _, f := range a.GlobalFlags() {
-			if matches(flagName, f) {
-				matchedFlag = f
+	if matched == nil {
+		for _, f := range a.root.flags {
+			if matches(name, f) {
+				matched = f
 				break
 			}
 		}
 	}
 
-	if matchedFlag == nil {
-		return nil, a.exitWithMsg(exitUsage, MsgInvalidFlag, cmd, map[string]string{
-			"flag": flagName,
+	if matched == nil {
+		return nil, a.exitWithMsg(exitUsage, MsgInvalidFlag, c, map[string]string{
+			"flag": name,
 		})
 	}
 
-	return matchedFlag, nil
+	return matched, nil
 }
 
 func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, error) {
-	var matchedFlag FlagInfo
+	var matched FlagInfo
 	var err error
 
 	for j, f := range arg[1:] {
-		matchedFlag, err = a.findFlag(p, ctx.command, "-"+string(f))
+		matched, err = a.findFlag(p, ctx.command, "-"+string(f))
 		if err != nil {
 			return i, err
 		}
 
-		var flagValue string
+		var value string
 
-		if v, ok := matchedFlag.Value().(NoArgFlag); ok {
+		if v, ok := matched.Value().(NoArgFlag); ok {
 			if err := v.SetNoArg(); err != nil {
-				return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+				return i, a.handleFlagValueError(ctx.command, matched, value, err)
 			}
 		} else {
 			if j < len(arg[1:])-1 { // -fvalue
-				flagValue = arg[j+2:]
+				value = arg[j+2:]
 			} else if i+1 < len(args) { // -f value
-				flagValue = args[i+1]
+				value = args[i+1]
 				i++
 			} else {
 				return i, a.exitWithMsg(exitUsage, MsgFlagValueMissing, ctx.command, map[string]string{
-					"flag": flagDisplayName(matchedFlag, true),
+					"flag": flagDisplayName(matched, true),
 				})
 			}
 
-			if err := matchedFlag.Value().Set(flagValue); err != nil {
-				return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+			if err := matched.Value().Set(value); err != nil {
+				return i, a.handleFlagValueError(ctx.command, matched, value, err)
 			}
 		}
 
-		a.registerFlag(ctx, matchedFlag)
+		registerFlag(ctx, matched)
 
-		switch matchedFlag.Value().(type) {
+		switch matched.Value().(type) {
 		case NoArgFlag:
 			continue
 		}
@@ -227,91 +227,91 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 }
 
 func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, error) {
-	var flagName string
-	var flagValue string
+	var name string
+	var value string
 	hasEqualSign := strings.Contains(arg, "=")
 
 	if hasEqualSign {
 		parts := strings.SplitN(arg, "=", 2)
-		flagName = parts[0]
-		flagValue = parts[1]
+		name = parts[0]
+		value = parts[1]
 	} else {
-		flagName = arg
+		name = arg
 	}
 
-	matchedFlag, err := a.findFlag(p, ctx.command, flagName)
+	matched, err := a.findFlag(p, ctx.command, name)
 	if err != nil {
 		return i, err
 	}
 
 	if hasEqualSign { // --flag=value
-		if err := matchedFlag.Value().Set(flagValue); err != nil {
-			return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+		if err := matched.Value().Set(value); err != nil {
+			return i, a.handleFlagValueError(ctx.command, matched, value, err)
 		}
 	} else {
-		if v, ok := matchedFlag.Value().(NoArgFlag); ok {
+		if v, ok := matched.Value().(NoArgFlag); ok {
 			if err := v.SetNoArg(); err != nil {
-				return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+				return i, a.handleFlagValueError(ctx.command, matched, value, err)
 			}
 		} else {
 			if i+1 < len(args) { // --flag value
-				flagValue = args[i+1]
+				value = args[i+1]
 
-				if err := matchedFlag.Value().Set(flagValue); err != nil {
-					return i, a.handleFlagValueError(ctx.command, matchedFlag, flagValue, err)
+				if err := matched.Value().Set(value); err != nil {
+					return i, a.handleFlagValueError(ctx.command, matched, value, err)
 				}
 
 				i++
 			} else {
 				return i, a.exitWithMsg(exitUsage, MsgFlagValueMissing, ctx.command, map[string]string{
-					"flag": flagDisplayName(matchedFlag, true),
+					"flag": flagDisplayName(matched, true),
 				})
 			}
 		}
 	}
 
-	a.registerFlag(ctx, matchedFlag)
+	registerFlag(ctx, matched)
 
 	return i, nil
 }
 
-func (a *App) handleFlagValueError(cmd CommandInfo, matchedFlag FlagInfo, flagValue string, err error) error {
-	errInfo := map[string]string{
-		"flag":  flagDisplayName(matchedFlag, true),
-		"value": flagValue,
+func (a *App) handleFlagValueError(c CommandInfo, matched FlagInfo, value string, err error) error {
+	data := map[string]string{
+		"flag":  flagDisplayName(matched, true),
+		"value": value,
 	}
 
-	switch matchedFlag.Value().(type) {
+	switch matched.Value().(type) {
 	case *typeInt:
-		return a.exitWithMsg(exitUsage, MsgIntParseError, cmd, errInfo)
+		return a.exitWithMsg(exitUsage, MsgIntParseError, c, data)
 	case *typeFloat64:
-		return a.exitWithMsg(exitUsage, MsgFloat64ParseError, cmd, errInfo)
+		return a.exitWithMsg(exitUsage, MsgFloat64ParseError, c, data)
 	case *typeBool:
-		return a.exitWithMsg(exitUsage, MsgBoolParseError, cmd, errInfo)
+		return a.exitWithMsg(exitUsage, MsgBoolParseError, c, data)
 	default:
-		return a.exitWithErr(exitUsage, err, cmd)
+		return a.exitWithErr(exitUsage, err, c)
 	}
 }
 
-func (a *App) registerFlag(ctx *Context, matchedFlag FlagInfo) {
-	matchedFlag.set()
-	if matchedFlag.role() != flagHelp && matchedFlag.role() != flagVersion {
-		ctx.flags[flagDisplayName(matchedFlag, false)] = matchedFlag
+func registerFlag(ctx *Context, matched FlagInfo) {
+	matched.set()
+	if matched.role() != flagHelp && matched.role() != flagVersion {
+		ctx.flags[flagDisplayName(matched, false)] = matched
 	}
 }
 
-func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) error {
-	if cmd == a.root {
+func (a *App) handleHelpAndVersion(p *parser, c CommandInfo) error {
+	if c == a.root {
 		if p.helpRequested {
-			return a.exitWithMsg(exitOK, MsgHelp, cmd, nil)
+			return a.exitWithMsg(exitOK, MsgHelp, c, nil)
 		}
 
 		if p.versionRequested {
-			return a.exitWithMsg(exitOK, MsgVersion, cmd, nil)
+			return a.exitWithMsg(exitOK, MsgVersion, c, nil)
 		}
 	} else {
 		if p.helpRequested {
-			return a.exitWithMsg(exitOK, MsgCommandHelp, cmd, nil)
+			return a.exitWithMsg(exitOK, MsgCommandHelp, c, nil)
 		}
 	}
 
@@ -319,33 +319,33 @@ func (a *App) handleHelpAndVersion(p *parser, cmd CommandInfo) error {
 }
 
 func (a *App) validateArguments(p *parser, ctx *Context) error {
-	cmd := ctx.command
+	c := ctx.command
 
-	if cmd == a.root && cmd.action() == nil && len(ctx.args) == 0 && len(cmd.Arguments()) == 0 {
-		return a.exitWithMsg(exitOK, MsgNoCommand, cmd, nil)
+	if c == a.root && c.Action() == nil && len(ctx.args) == 0 && len(c.Arguments()) == 0 {
+		return a.exitWithMsg(exitOK, MsgNoCommand, c, nil)
 	}
 
-	if cmd != a.root && len(cmd.Subcommands()) > 0 && cmd.action() == nil && len(cmd.Arguments()) == 0 {
-		return a.exitWithMsg(exitUsage, MsgSubcommandRequired, cmd, map[string]string{
-			"command": cmd.Name(),
+	if c != a.root && len(c.Subcommands()) > 0 && c.Action() == nil && len(c.Arguments()) == 0 {
+		return a.exitWithMsg(exitUsage, MsgSubcommandRequired, c, map[string]string{
+			"command": c.Name(),
 		})
 	}
 
-	if len(cmd.Arguments()) == 0 && len(p.rawArgs) > 0 {
-		return a.exitWithMsg(exitUsage, MsgUnexpectedArgument, cmd, map[string]string{
+	if len(c.Arguments()) == 0 && len(p.rawArgs) > 0 {
+		return a.exitWithMsg(exitUsage, MsgUnexpectedArgument, c, map[string]string{
 			"argument": p.rawArgs[0],
 		})
 	}
 
-	if len(cmd.Arguments()) == 0 {
+	if len(c.Arguments()) == 0 {
 		return nil
 	}
 
-	for i, arg := range cmd.Arguments() {
+	for i, arg := range c.Arguments() {
 		hasArg := i < len(p.rawArgs)
 		remaining := max(len(p.rawArgs)-i, 0)
 
-		errInfo := map[string]string{
+		data := map[string]string{
 			"name": arg.Name(),
 			"min":  fmt.Sprint(arg.Min()),
 			"max":  fmt.Sprint(arg.Max()),
@@ -354,11 +354,11 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 
 		if arg.IsVariadic() {
 			if arg.IsRequired() && arg.Min() > remaining {
-				return a.exitWithMsg(exitUsage, MsgTooFewArguments, cmd, errInfo)
+				return a.exitWithMsg(exitUsage, MsgTooFewArguments, c, data)
 			}
 
 			if arg.Max() >= 0 && arg.Max() < remaining {
-				return a.exitWithMsg(exitUsage, MsgTooManyArguments, cmd, errInfo)
+				return a.exitWithMsg(exitUsage, MsgTooManyArguments, c, data)
 			}
 
 			if hasArg {
@@ -370,11 +370,11 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 		}
 
 		if arg.IsRequired() && !hasArg {
-			return a.exitWithMsg(exitUsage, MsgTooFewArguments, cmd, errInfo)
+			return a.exitWithMsg(exitUsage, MsgTooFewArguments, c, data)
 		}
 
-		if i == len(cmd.Arguments())-1 && remaining > 1 {
-			return a.exitWithMsg(exitUsage, MsgTooManyArguments, cmd, errInfo)
+		if i == len(c.Arguments())-1 && remaining > 1 {
+			return a.exitWithMsg(exitUsage, MsgTooManyArguments, c, data)
 		}
 
 		if hasArg {
@@ -388,11 +388,9 @@ func (a *App) validateArguments(p *parser, ctx *Context) error {
 }
 
 func (a *App) validate(ctx *Context) error {
-	cmd := ctx.command
-
 	for _, f := range ctx.flags {
 		if f.IsRequired() && !f.IsSet() {
-			return a.exitWithMsg(exitUsage, MsgFlagRequired, cmd, map[string]string{
+			return a.exitWithMsg(exitUsage, MsgFlagRequired, ctx.command, map[string]string{
 				"flag": flagDisplayName(f, true),
 			})
 		}
@@ -410,8 +408,8 @@ func (a *App) validate(ctx *Context) error {
 }
 
 func (a *App) run(ctx *Context) error {
-	if ctx.command.action() != nil {
-		if err := ctx.command.action()(ctx); err != nil {
+	if ctx.command.Action() != nil {
+		if err := ctx.command.Action()(ctx); err != nil {
 			return a.exitWithErr(exitError, err, ctx.command)
 		}
 	}

@@ -67,10 +67,10 @@ type FlagValueGetter interface {
 
 // NewStringFlag creates a new string flag with the given name and default value.
 func NewStringFlag(name string, defaultValue string) *Flag[string] {
-	value := defaultValue
+	v := defaultValue
 	return &Flag[string]{
 		name:         name,
-		value:        &typeString{value: &value},
+		value:        &typeString{value: &v},
 		defaultValue: defaultValue,
 		placeholder:  "STRING",
 	}
@@ -78,21 +78,21 @@ func NewStringFlag(name string, defaultValue string) *Flag[string] {
 
 // NewStringFlagVar creates a new string flag with the given name and provided variable.
 func NewStringFlagVar(name string, variable *string) *Flag[string] {
-	defaultValue := *variable
+	dv := *variable
 	return &Flag[string]{
 		name:         name,
 		value:        &typeString{value: variable},
-		defaultValue: defaultValue,
+		defaultValue: dv,
 		placeholder:  "STRING",
 	}
 }
 
 // NewIntFlag creates a new int flag with the given name and default value.
 func NewIntFlag(name string, defaultValue int) *Flag[int] {
-	value := defaultValue
+	v := defaultValue
 	return &Flag[int]{
 		name:         name,
-		value:        &typeInt{value: &value},
+		value:        &typeInt{value: &v},
 		defaultValue: defaultValue,
 		placeholder:  "INT",
 	}
@@ -100,21 +100,21 @@ func NewIntFlag(name string, defaultValue int) *Flag[int] {
 
 // NewIntFlagVar creates a new int flag with the given name and provided variable.
 func NewIntFlagVar(name string, variable *int) *Flag[int] {
-	defaultValue := *variable
+	dv := *variable
 	return &Flag[int]{
 		name:         name,
 		value:        &typeInt{value: variable},
-		defaultValue: defaultValue,
+		defaultValue: dv,
 		placeholder:  "INT",
 	}
 }
 
 // NewFloatFlag creates a new float64 flag with the given name and default value.
 func NewFloatFlag(name string, defaultValue float64) *Flag[float64] {
-	value := defaultValue
+	v := defaultValue
 	return &Flag[float64]{
 		name:         name,
-		value:        &typeFloat64{value: &value},
+		value:        &typeFloat64{value: &v},
 		defaultValue: defaultValue,
 		placeholder:  "FLOAT",
 	}
@@ -122,47 +122,47 @@ func NewFloatFlag(name string, defaultValue float64) *Flag[float64] {
 
 // NewFloatFlagVar creates a new float64 flag with the given name and provided variable.
 func NewFloatFlagVar(name string, variable *float64) *Flag[float64] {
-	defaultValue := *variable
+	dv := *variable
 	return &Flag[float64]{
 		name:         name,
 		value:        &typeFloat64{value: variable},
-		defaultValue: defaultValue,
+		defaultValue: dv,
 		placeholder:  "FLOAT",
 	}
 }
 
 // NewBoolFlag creates a new bool flag with the given name and default value.
 func NewBoolFlag(name string, defaultValue bool) *Flag[bool] {
-	value := defaultValue
+	v := defaultValue
 	return &Flag[bool]{
 		name:         name,
-		value:        &typeBool{value: &value},
+		value:        &typeBool{value: &v},
 		defaultValue: defaultValue,
 	}
 }
 
 // NewBoolFlagVar creates a new bool flag with the given name and provided variable.
 func NewBoolFlagVar(name string, variable *bool) *Flag[bool] {
-	defaultValue := *variable
+	dv := *variable
 	return &Flag[bool]{
 		name:         name,
 		value:        &typeBool{value: variable},
-		defaultValue: defaultValue,
+		defaultValue: dv,
 	}
 }
 
 // NewStringSliceFlag creates a new string slice flag with the given name and default value.
 func NewStringSliceFlag(name string, defaultValue []string) *Flag[[]string] {
-	var value []string
+	var v []string
 
 	if len(defaultValue) > 0 {
-		value = make([]string, len(defaultValue))
-		copy(value, defaultValue)
+		v = make([]string, len(defaultValue))
+		copy(v, defaultValue)
 	}
 
 	return &Flag[[]string]{
 		name:         name,
-		value:        &typeStringSlice{value: &value},
+		value:        &typeStringSlice{value: &v},
 		defaultValue: defaultValue,
 		placeholder:  "STRINGS",
 	}
@@ -170,17 +170,17 @@ func NewStringSliceFlag(name string, defaultValue []string) *Flag[[]string] {
 
 // NewStringSliceFlagVar creates a new string slice flag with the given name and provided variable.
 func NewStringSliceFlagVar(name string, variable *[]string) *Flag[[]string] {
-	var defaultValue []string
+	var dv []string
 
 	if len(*variable) > 0 {
-		defaultValue = make([]string, len(*variable))
-		copy(defaultValue, *variable)
+		dv = make([]string, len(*variable))
+		copy(dv, *variable)
 	}
 
 	return &Flag[[]string]{
 		name:         name,
 		value:        &typeStringSlice{value: variable},
-		defaultValue: defaultValue,
+		defaultValue: dv,
 		placeholder:  "STRINGS",
 	}
 }
