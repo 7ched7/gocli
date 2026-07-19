@@ -8,7 +8,7 @@ import (
 type messageType int
 
 const (
-	msgNone messageType = iota
+	MsgCustomError messageType = iota
 	MsgHelp
 	MsgCommandHelp
 	MsgVersion
@@ -248,10 +248,6 @@ func (a *App) exit(m *CLIMessage) error {
 
 	cliMsg.writer = getWriter(cliMsg.code)
 
-	if cliMsg.messageType == msgNone {
-		return &cliMsg
-	}
-
 	msgCtx := MessageContext{
 		app: a,
 		msg: &cliMsg,
@@ -266,6 +262,8 @@ func (a *App) exit(m *CLIMessage) error {
 	if fn != nil {
 		if err := fn(msgCtx); err != nil {
 			cliMsg.message, cliMsg.code = getMessageInfo(err, cliMsg.code)
+		} else {
+			cliMsg.message = ""
 		}
 	}
 
@@ -287,8 +285,9 @@ func (a *App) exitWithErr(code int, err error, c CommandInfo) error {
 		code = e.code
 	}
 	return a.exit(&CLIMessage{
-		code:    code,
-		message: err.Error(),
-		command: c,
+		code:        code,
+		messageType: MsgCustomError,
+		message:     err.Error(),
+		command:     c,
 	})
 }
