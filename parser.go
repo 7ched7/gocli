@@ -133,7 +133,7 @@ func (a *App) findFlag(p *parser, c CommandInfo, name string) (FlagInfo, error) 
 
 	matches := func(name string, f FlagInfo) bool {
 		return (f.Name() != "" && "--"+f.Name() == name) ||
-			(f.Alias() != "" && "-"+f.Alias() == name)
+			(f.Shorthand() != "" && "-"+f.Shorthand() == name)
 	}
 
 	// Help flag

@@ -24,8 +24,8 @@ func TestApp(t *testing.T) {
 		{"command help menu 2", []string{"math", "--help"}, "Usage", 0},
 		{"command alias", []string{"msg", "Hello"}, "Hey Guest! Hello", 0},
 		{"flag variable", []string{"message", "Hi"}, "Hey Guest! Hi", 0},
-		{"flag alias", []string{"message", "-t", "John", "Welcome"}, "Hey John! Welcome", 0},
-		{"combined flag alias and value", []string{"message", "-tJohn", "Welcome"}, "Hey John! Welcome", 0},
+		{"flag shorthand", []string{"message", "-t", "John", "Welcome"}, "Hey John! Welcome", 0},
+		{"combined flag shorthand and value", []string{"message", "-tJohn", "Welcome"}, "Hey John! Welcome", 0},
 		{"combined flags", []string{"message", "-vtJohn", "Welcome"}, "Hey John! Welcome", 0},
 		{"long flag with space", []string{"message", "How are you doing", "--to", "Emily"}, "Hey Emily! How are you doing", 0},
 		{"long flag with equal sign", []string{"message", "Hi", "--to=Ben"}, "Hey Ben! Hi", 0},
@@ -72,7 +72,7 @@ func TestApp(t *testing.T) {
 func exampleApp() *App {
 	app := NewApp("mycli").WithVersion("0.1.0")
 
-	app.AddGlobalFlag(NewBoolFlag("verbose", false).WithAlias("v").WithDescription("Verbose output"))
+	app.AddGlobalFlag(NewBoolFlag("verbose", false).WithShorthand("v").WithDescription("Verbose output"))
 
 	defaultName := "Guest"
 
@@ -81,7 +81,7 @@ func exampleApp() *App {
 		WithShort("Send a message").
 		WithLong("Send a message to someone").
 		AddArgument(NewArgument("message")).
-		AddFlag(NewStringFlagVar("to", &defaultName).WithAlias("t").WithDescription("Name to send a message to")).
+		AddFlag(NewStringFlagVar("to", &defaultName).WithShorthand("t").WithDescription("Name to send a message to")).
 		WithAction(func(ctx *Context) error {
 			name := ctx.Flag("to").String()
 			text := ctx.Arg("message").Get(0)
@@ -108,7 +108,7 @@ func exampleApp() *App {
 		AddSubcommand(
 			NewCommand("mul").
 				WithShort("Multiplies numbers").
-				AddFlag(NewStringSliceFlag("numbers", []string{}).WithAlias("n").WithDescription("Number list to multiply")).
+				AddFlag(NewStringSliceFlag("numbers", []string{}).WithShorthand("n").WithDescription("Number list to multiply")).
 				WithAction(func(ctx *Context) error {
 					result := 1
 					for _, n := range ctx.Flag("numbers").StringSlice() {

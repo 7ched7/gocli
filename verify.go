@@ -86,22 +86,22 @@ func (a *App) verifyFlag(
 
 	for _, f := range flags {
 		name := strings.TrimSpace(f.Name())
-		alias := strings.TrimSpace(f.Alias())
+		shorthand := strings.TrimSpace(f.Shorthand())
 
-		if name == "" && alias == "" {
+		if name == "" && shorthand == "" {
 			*errs = append(*errs, fmt.Errorf(
-				"flag name and alias cannot both be empty (command: %q)",
+				"flag name and shorthand cannot both be empty (command: %q)",
 				c.Name(),
 			))
 			continue
 		}
 
 		if checkHelp {
-			a.verifyHelpFlag(c, name, alias, errs)
+			a.verifyHelpFlag(c, name, shorthand, errs)
 		}
 
 		if checkVersion {
-			a.verifyVersionFlag(c, name, alias, errs)
+			a.verifyVersionFlag(c, name, shorthand, errs)
 		}
 
 		if name != "" {
@@ -116,29 +116,29 @@ func (a *App) verifyFlag(
 			nameMap[name] = true
 		}
 
-		if alias != "" {
-			if len(alias) > 1 {
+		if shorthand != "" {
+			if len(shorthand) > 1 {
 				*errs = append(*errs, fmt.Errorf(
-					"flag alias %q cannot be longer than 1 character (command %q)",
-					alias,
+					"flag shorthand %q cannot be longer than 1 character (command %q)",
+					shorthand,
 					c.Name(),
 				))
 			}
 
-			if _, ok := nameMap[alias]; ok {
+			if _, ok := nameMap[shorthand]; ok {
 				*errs = append(*errs, fmt.Errorf(
-					"duplicate flag alias %q (command %q)",
-					alias,
+					"duplicate flag shorthand %q (command %q)",
+					shorthand,
 					c.Name(),
 				))
 			}
 
-			nameMap[alias] = true
+			nameMap[shorthand] = true
 		}
 	}
 }
 
-func (a *App) verifyHelpFlag(c CommandInfo, name, alias string, errs *[]error) {
+func (a *App) verifyHelpFlag(c CommandInfo, name, shorthand string, errs *[]error) {
 	f := a.config.HelpFlag
 
 	if f != nil {
@@ -150,17 +150,17 @@ func (a *App) verifyHelpFlag(c CommandInfo, name, alias string, errs *[]error) {
 			))
 		}
 
-		if alias != "" && f.Alias() != "" && alias == f.Alias() {
+		if shorthand != "" && f.Shorthand() != "" && shorthand == f.Shorthand() {
 			*errs = append(*errs, fmt.Errorf(
-				"duplicate system flag alias %q (command: %q)",
-				f.Alias(),
+				"duplicate system flag shorthand %q (command: %q)",
+				f.Shorthand(),
 				c.Name(),
 			))
 		}
 	}
 }
 
-func (a *App) verifyVersionFlag(c CommandInfo, name, alias string, errs *[]error) {
+func (a *App) verifyVersionFlag(c CommandInfo, name, shorthand string, errs *[]error) {
 	f := a.config.VersionFlag
 
 	if f != nil {
@@ -172,10 +172,10 @@ func (a *App) verifyVersionFlag(c CommandInfo, name, alias string, errs *[]error
 			))
 		}
 
-		if alias != "" && f.Alias() != "" && alias == f.Alias() {
+		if shorthand != "" && f.Shorthand() != "" && shorthand == f.Shorthand() {
 			*errs = append(*errs, fmt.Errorf(
-				"duplicate system flag alias %q (command: %q)",
-				f.Alias(),
+				"duplicate system flag shorthand %q (command: %q)",
+				f.Shorthand(),
 				c.Name(),
 			))
 		}

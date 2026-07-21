@@ -6,7 +6,7 @@ import "fmt"
 // It handles parsing, validation, and metadata for the flag.
 type Flag[T any] struct {
 	name         string
-	alias        string
+	shorthand    string
 	value        FlagValue
 	defaultValue any
 	description  string
@@ -19,7 +19,7 @@ type Flag[T any] struct {
 // FlagInfo provides access to flag metadata.
 type FlagInfo interface {
 	Name() string                                      // Name returns the name of the flag.
-	Alias() string                                     // Alias returns the optional alias of the flag.
+	Shorthand() string                                 // Shorthand returns the shorthand of the flag.
 	Value() FlagValue                                  // Value returns the parsed value of the flag.
 	DefaultValue() any                                 // DefaultValue returns the default value of the flag.
 	Description() string                               // Description returns the description of the flag.
@@ -183,9 +183,9 @@ func NewCustomFlagVar(name string, variable FlagValue) *Flag[FlagValue] {
 	}
 }
 
-// WithAlias sets the alias for the flag.
-func (f *Flag[T]) WithAlias(alias string) *Flag[T] {
-	f.alias = alias
+// WithShorthand sets the shorthand for the flag.
+func (f *Flag[T]) WithShorthand(shorthand string) *Flag[T] {
+	f.shorthand = shorthand
 	return f
 }
 
@@ -220,8 +220,8 @@ func (f *Flag[T]) WithValidator(fn ...func(ctx *Context, value T) error) *Flag[T
 // Name returns the name of the flag.
 func (f *Flag[T]) Name() string { return f.name }
 
-// Alias returns the alias of the flag.
-func (f *Flag[T]) Alias() string { return f.alias }
+// Shorthand returns the shorthand of the flag.
+func (f *Flag[T]) Shorthand() string { return f.shorthand }
 
 // Value returns the value of the flag.
 func (f *Flag[T]) Value() FlagValue { return f.value }

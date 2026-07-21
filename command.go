@@ -39,8 +39,7 @@ func NewCommand(name string) *Command {
 	return &Command{name: name}
 }
 
-// WithAlias sets the short alias for the command.
-// Alias provides alternative way for users to run the command.
+// WithAlias sets the alias for the command.
 func (c *Command) WithAlias(alias string) *Command {
 	c.alias = alias
 	return c

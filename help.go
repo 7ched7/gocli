@@ -175,13 +175,13 @@ func flagsToRows(flags []FlagInfo) []row {
 
 	for _, f := range flags {
 		name := f.Name()
-		alias := f.Alias()
+		shorthand := f.Shorthand()
 		placeholder := f.Placeholder()
 
 		left := ""
 
-		if alias != "" {
-			left = "-" + alias
+		if shorthand != "" {
+			left = "-" + shorthand
 
 			if name != "" {
 				left += ", "
@@ -306,12 +306,12 @@ func flagDisplayName(f FlagInfo, includeDash bool) string {
 	name := f.Name()
 
 	if name == "" {
-		alias := f.Alias()
+		shorthand := f.Shorthand()
 
 		if includeDash {
-			return "-" + alias
+			return "-" + shorthand
 		}
-		return alias
+		return shorthand
 	}
 
 	if includeDash {

@@ -30,10 +30,10 @@ func DefaultAppConfig() AppConfig {
 
 // DefaultHelpFlag creates and returns the default help flag.
 func DefaultHelpFlag() *Flag[bool] {
-	return NewBoolFlag("help", false).WithAlias("h").WithDescription("Show help")
+	return NewBoolFlag("help", false).WithShorthand("h").WithDescription("Show help")
 }
 
 // DefaultVersionFlag creates and returns the default version flag.
 func DefaultVersionFlag() *Flag[bool] {
-	return NewBoolFlag("version", false).WithAlias("v").WithDescription("Show version")
+	return NewBoolFlag("version", false).WithShorthand("v").WithDescription("Show version")
 }
