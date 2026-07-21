@@ -8,6 +8,8 @@ import (
 type parser struct {
 	rawArgs          []string
 	positionalOnly   bool
+	currentCommand   string
+	currentFlag      string
 	helpRequested    bool
 	versionRequested bool
 }
@@ -30,7 +32,7 @@ func (a *App) handler(args []string) error {
 }
 
 func (a *App) parse(args []string) (*Context, error) {
-	p := &parser{rawArgs: []string{}}
+	p := &parser{}
 
 	ctx := &Context{
 		app:     a,
@@ -79,10 +81,6 @@ func (a *App) parse(args []string) (*Context, error) {
 			return nil, err
 		}
 
-		if err := a.handleHelpAndVersion(p, ctx.command); err != nil {
-			return nil, err
-		}
-
 		i = newi
 	}
 
@@ -94,13 +92,15 @@ func (a *App) parse(args []string) (*Context, error) {
 }
 
 func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
+	hasNoArgs := len(p.rawArgs) == 0
 	isCmd := false
 
-	if len(ctx.args) == 0 {
+	if hasNoArgs {
 		for _, c := range ctx.command.Subcommands() {
 			if c.Name() == arg || c.Alias() == arg {
-				isCmd = true
 				ctx.command = c
+				p.currentCommand = arg
+				isCmd = true
 			}
 		}
 	}
@@ -108,8 +108,7 @@ func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 	c := ctx.command
 
 	if !isCmd {
-		if ((c == a.root && c.Action() == nil) || c != a.root && len(c.Subcommands()) > 0) &&
-			len(c.Arguments()) == 0 {
+		if hasNoArgs && len(c.Subcommands()) > 0 && len(c.Arguments()) == 0 {
 			return a.exitWithMsg(exitUsage, MsgUnknownCommand, c, map[string]string{
 				"command": arg,
 			})
@@ -178,15 +177,13 @@ func (a *App) findFlag(p *parser, c CommandInfo, name string) (FlagInfo, error) 
 		})
 	}
 
+	p.currentFlag = name
 	return matched, nil
 }
 
 func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string, i int) (int, error) {
-	var matched FlagInfo
-	var err error
-
 	for j, f := range arg[1:] {
-		matched, err = a.findFlag(p, ctx.command, "-"+string(f))
+		matched, err := a.findFlag(p, ctx.command, "-"+string(f))
 		if err != nil {
 			return i, err
 		}
@@ -195,7 +192,7 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 
 		if v, ok := matched.Value().(NoArgFlag); ok {
 			if err := v.SetNoArg(); err != nil {
-				return i, a.handleFlagValueError(ctx.command, matched, value, err)
+				return i, a.handleFlagValueError(p, ctx.command, matched, value, err)
 			}
 		} else {
 			if j < len(arg[1:])-1 { // -fvalue
@@ -205,13 +202,17 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 				i++
 			} else {
 				return i, a.exitWithMsg(exitUsage, MsgFlagValueMissing, ctx.command, map[string]string{
-					"flag": flagDisplayName(matched, true),
+					"flag": p.currentFlag,
 				})
 			}
 
 			if err := matched.Value().Set(value); err != nil {
-				return i, a.handleFlagValueError(ctx.command, matched, value, err)
+				return i, a.handleFlagValueError(p, ctx.command, matched, value, err)
 			}
+		}
+
+		if err := a.handleSystemFlag(p, ctx.command); err != nil {
+			return i, err
 		}
 
 		registerFlag(ctx, matched)
@@ -246,28 +247,32 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 
 	if hasEqualSign { // --flag=value
 		if err := matched.Value().Set(value); err != nil {
-			return i, a.handleFlagValueError(ctx.command, matched, value, err)
+			return i, a.handleFlagValueError(p, ctx.command, matched, value, err)
 		}
 	} else {
 		if v, ok := matched.Value().(NoArgFlag); ok {
 			if err := v.SetNoArg(); err != nil {
-				return i, a.handleFlagValueError(ctx.command, matched, value, err)
+				return i, a.handleFlagValueError(p, ctx.command, matched, value, err)
 			}
 		} else {
 			if i+1 < len(args) { // --flag value
 				value = args[i+1]
 
 				if err := matched.Value().Set(value); err != nil {
-					return i, a.handleFlagValueError(ctx.command, matched, value, err)
+					return i, a.handleFlagValueError(p, ctx.command, matched, value, err)
 				}
 
 				i++
 			} else {
 				return i, a.exitWithMsg(exitUsage, MsgFlagValueMissing, ctx.command, map[string]string{
-					"flag": flagDisplayName(matched, true),
+					"flag": p.currentFlag,
 				})
 			}
 		}
+	}
+
+	if err := a.handleSystemFlag(p, ctx.command); err != nil {
+		return i, err
 	}
 
 	registerFlag(ctx, matched)
@@ -275,9 +280,9 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 	return i, nil
 }
 
-func (a *App) handleFlagValueError(c CommandInfo, matched FlagInfo, value string, err error) error {
+func (a *App) handleFlagValueError(p *parser, c CommandInfo, matched FlagInfo, value string, err error) error {
 	data := map[string]string{
-		"flag":  flagDisplayName(matched, true),
+		"flag":  p.currentFlag,
 		"value": value,
 	}
 
@@ -295,12 +300,10 @@ func (a *App) handleFlagValueError(c CommandInfo, matched FlagInfo, value string
 
 func registerFlag(ctx *Context, matched FlagInfo) {
 	matched.set()
-	if matched.role() != flagHelp && matched.role() != flagVersion {
-		ctx.flags[flagDisplayName(matched, false)] = matched
-	}
+	ctx.flags[flagDisplayName(matched, false)] = matched
 }
 
-func (a *App) handleHelpAndVersion(p *parser, c CommandInfo) error {
+func (a *App) handleSystemFlag(p *parser, c CommandInfo) error {
 	if c == a.root {
 		if p.helpRequested {
 			return a.exitWithMsg(exitOK, MsgHelp, c, nil)
@@ -320,18 +323,20 @@ func (a *App) handleHelpAndVersion(p *parser, c CommandInfo) error {
 
 func (a *App) validateArguments(p *parser, ctx *Context) error {
 	c := ctx.command
+	hasNoArgs := len(p.rawArgs) == 0
+	hasNoActionOrArgs := c.Action() == nil && len(c.Arguments()) == 0
 
-	if c == a.root && c.Action() == nil && len(ctx.args) == 0 && len(c.Arguments()) == 0 {
+	if c == a.root && hasNoArgs && hasNoActionOrArgs {
 		return a.exitWithMsg(exitOK, MsgNoCommand, c, nil)
 	}
 
-	if c != a.root && len(c.Subcommands()) > 0 && c.Action() == nil && len(c.Arguments()) == 0 {
+	if c != a.root && hasNoArgs && hasNoActionOrArgs && len(c.Subcommands()) > 0 {
 		return a.exitWithMsg(exitUsage, MsgSubcommandRequired, c, map[string]string{
-			"command": c.Name(),
+			"command": p.currentCommand,
 		})
 	}
 
-	if len(c.Arguments()) == 0 && len(p.rawArgs) > 0 {
+	if !hasNoArgs && len(c.Arguments()) == 0 {
 		return a.exitWithMsg(exitUsage, MsgUnexpectedArgument, c, map[string]string{
 			"argument": p.rawArgs[0],
 		})

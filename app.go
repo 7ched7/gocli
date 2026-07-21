@@ -106,12 +106,6 @@ func (a *App) WithDescription(description string) *App {
 
 // WithConfig sets the configuration settings for the application.
 func (a *App) WithConfig(config AppConfig) *App {
-	if config.HelpFlag != nil {
-		config.HelpFlag.setRole(flagHelp)
-	}
-	if config.VersionFlag != nil {
-		config.VersionFlag.setRole(flagVersion)
-	}
 	a.config = config
 	return a
 }

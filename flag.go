@@ -2,14 +2,6 @@ package gocli
 
 import "fmt"
 
-type flagRole int
-
-const (
-	flagStandard flagRole = iota
-	flagHelp
-	flagVersion
-)
-
 // Flag represents a single flag for the CLI.
 // It handles parsing, validation, and metadata for the flag.
 type Flag[T any] struct {
@@ -22,7 +14,6 @@ type Flag[T any] struct {
 	isRequired   bool
 	validators   []func(ctx *Context, value T) error
 	isSet        bool
-	r            flagRole
 }
 
 // FlagInfo provides access to flag metadata.
@@ -40,8 +31,6 @@ type FlagInfo interface {
 	FlagValueGetter
 
 	set()
-	setRole(role flagRole)
-	role() flagRole
 }
 
 // FlagValue defines an interface for all flag values.
@@ -312,6 +301,4 @@ func (f *Flag[T]) StringSlice() []string {
 	return f.Value().Get().([]string)
 }
 
-func (f *Flag[T]) set()               { f.isSet = true }
-func (f *Flag[T]) setRole(r flagRole) { f.r = r }
-func (f *Flag[T]) role() flagRole     { return f.r }
+func (f *Flag[T]) set() { f.isSet = true }
