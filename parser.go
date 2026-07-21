@@ -97,7 +97,8 @@ func (a *App) handleArgument(p *parser, ctx *Context, arg string) error {
 
 	if hasNoArgs {
 		for _, c := range ctx.command.Subcommands() {
-			if c.Name() == arg || c.Alias() == arg {
+			if (c.Name() != "" && c.Name() == arg) ||
+				(c.Alias() != "" && c.Alias() == arg) {
 				ctx.command = c
 				p.currentCommand = arg
 				isCmd = true
@@ -131,8 +132,8 @@ func (a *App) findFlag(p *parser, c CommandInfo, name string) (FlagInfo, error) 
 	var matched FlagInfo
 
 	matches := func(name string, f FlagInfo) bool {
-		return (f.Name() != "" && name == "--"+f.Name()) ||
-			(f.Alias() != "" && name == "-"+f.Alias())
+		return (f.Name() != "" && "--"+f.Name() == name) ||
+			(f.Alias() != "" && "-"+f.Alias() == name)
 	}
 
 	// Help flag
