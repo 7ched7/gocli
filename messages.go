@@ -146,7 +146,7 @@ func msgUnknownCommand(msgCtx MessageContext) error {
 
 func msgSubcommandRequired(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: a subcommand is required for command '%s'%s",
+		"error: command '%s' requires a subcommand%s",
 		msgCtx.msg.data["command"],
 		msgUsage(&msgCtx),
 	)
@@ -162,36 +162,39 @@ func msgInvalidFlag(msgCtx MessageContext) error {
 
 func msgFlagValueMissing(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: a value is required for flag '%s'",
+		"error: flag '%s' requires a value",
 		msgCtx.msg.data["flag"],
 	)
 }
 
 func msgFlagRequired(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: flag is required: '%s'",
+		"error: missing required flag: '%s'",
 		msgCtx.msg.data["flag"],
 	)
 }
 
 func msgIntParseError(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: invalid value '%v': expected integer",
+		"error: invalid value '%s' for flag '%s': expected integer",
 		msgCtx.msg.data["value"],
+		msgCtx.msg.data["flag"],
 	)
 }
 
 func msgFloat64ParseError(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: invalid value '%v': expected float",
+		"error: invalid value '%s' for flag '%s': expected float",
 		msgCtx.msg.data["value"],
+		msgCtx.msg.data["flag"],
 	)
 }
 
 func msgBoolParseError(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: invalid value '%v': expected boolean",
+		"error: invalid value '%s' for flag '%s': expected boolean",
 		msgCtx.msg.data["value"],
+		msgCtx.msg.data["flag"],
 	)
 }
 
@@ -204,7 +207,7 @@ func msgUnexpectedArgument(msgCtx MessageContext) error {
 
 func msgTooFewArguments(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: argument '%s' expects at least %s value(s), but got %s",
+		"error: argument '%s' expects at least %s value(s), got %s",
 		msgCtx.msg.data["name"],
 		msgCtx.msg.data["min"],
 		msgCtx.msg.data["got"],
@@ -213,7 +216,7 @@ func msgTooFewArguments(msgCtx MessageContext) error {
 
 func msgTooManyArguments(msgCtx MessageContext) error {
 	return fmt.Errorf(
-		"error: argument '%s' expects at most %s value(s), but got %s",
+		"error: argument '%s' expects at most %s value(s), got %s",
 		msgCtx.msg.data["name"],
 		msgCtx.msg.data["max"],
 		msgCtx.msg.data["got"],
