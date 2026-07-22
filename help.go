@@ -199,7 +199,12 @@ func flagsToRows(flags []FlagInfo) []row {
 		}
 
 		if placeholder != "" {
-			left += " " + placeholder
+			if name != "" {
+				left += "="
+			} else {
+				left += " "
+			}
+			left += placeholder
 		}
 
 		rows = append(rows, row{left, f.Description(), len(left)})
