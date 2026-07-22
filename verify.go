@@ -2,240 +2,208 @@ package gocli
 
 import (
 	"fmt"
-	"strings"
 )
 
-func (a *App) verify() []error {
-	var errs []error
-	a.verifyCommands(&errs)
-	a.verifySystemFlags(&errs)
-	a.verifyGlobalFlags(&errs)
-	return errs
+const (
+	errCmdNameEmpty      = "command %q: command name cannot be empty"
+	errCmdDuplicateName  = "command %q: duplicate command name %q"
+	errCmdDuplicateAlias = "command %q: duplicate command alias %q"
+
+	errArgNameEmpty             = "command %q: argument name cannot be empty"
+	errArgAfterVariadic         = "command %q: argument %q cannot follow a variadic argument"
+	errArgRequiredAfterOptional = "command %q: required argument %q cannot follow an optional argument"
+	errArgDuplicateName         = "command %q: duplicate argument name %q"
+	errArgMinNegative           = "command %q: minimum value of argument %q cannot be negative"
+	errArgMinGreaterThanMax     = "command %q: minimum value of argument %q cannot be greater than maximum value"
+	errArgMinAndMaxZero         = "command %q: minimum and maximum values for argument %q cannot both be zero"
+
+	errFlagNameAndShorthandEmpty  = "command %q: flag name and shorthand cannot both be empty"
+	errFlagShorthandCharacterLong = "command %q: flag shorthand %q cannot be longer than 1 character"
+	errFlagDuplicateName          = "command %q: duplicate flag name %q"
+	errFlagDuplicateShorthand     = "command %q: duplicate flag shorthand %q"
+
+	errSystemFlagDuplicateName      = "command %q: duplicate system flag name %q"
+	errSystemFlagDuplicateShorthand = "command %q: duplicate system flag shorthand %q"
+)
+
+func panicf(format string, a ...any) {
+	panic(fmt.Sprintf(format, a...))
 }
 
-func (a *App) verifyCommands(errs *[]error) {
-	var walk func([]CommandInfo)
+func (c *Command) verifyCommands(commands ...CommandInfo) {
+	seen := make(map[string]struct{})
 
-	walk = func(commands []CommandInfo) {
-		nameMap := make(map[string]bool)
-
-		for _, c := range commands {
-			name := strings.TrimSpace(c.Name())
-			alias := strings.TrimSpace(c.Alias())
-
-			if name == "" {
-				*errs = append(*errs, fmt.Errorf(
-					"command name cannot be empty (command: %q)",
-					c.Parent().Name(),
-				))
-				continue
-			}
-
-			if _, ok := nameMap[name]; ok {
-				*errs = append(*errs, fmt.Errorf(
-					"duplicate command name %q (command: %q)",
-					name,
-					c.Parent().Name(),
-				))
-			}
-
-			nameMap[name] = true
-
-			if alias != "" {
-				if _, ok := nameMap[alias]; ok {
-					*errs = append(*errs, fmt.Errorf(
-						"duplicate command alias %q (command: %q)",
-						alias,
-						c.Parent().Name(),
-					))
-				}
-
-				nameMap[alias] = true
-			}
-
-			a.verifyFlags(c, errs)
-			a.verifyArguments(c, errs)
-
-			walk(c.Subcommands())
+	for _, existing := range c.subcommands {
+		seen[existing.Name()] = struct{}{}
+		if existing.Alias() != "" {
+			seen[existing.Alias()] = struct{}{}
 		}
 	}
 
-	walk(a.root.subcommands)
+	for _, cmd := range commands {
+		currName := cmd.Name()
+		currAlias := cmd.Alias()
+
+		if currName == "" {
+			panicf(errCmdNameEmpty, c.name)
+		}
+
+		if _, ok := seen[currName]; ok {
+			panicf(errCmdDuplicateName, c.name, currName)
+		}
+
+		if currAlias != "" {
+			if _, ok := seen[currAlias]; ok {
+				panicf(errCmdDuplicateAlias, c.name, currAlias)
+			}
+			seen[currAlias] = struct{}{}
+		}
+
+		seen[currName] = struct{}{}
+	}
 }
 
-func (a *App) verifyFlags(c CommandInfo, errs *[]error) {
-	a.verifyFlag(c, c.Flags(), true, false, errs)
+func (c *Command) verifyArguments(arguments ...ArgumentInfo) {
+	seen := make(map[string]struct{})
+	hasVariadic := false
+	hasOptional := false
+
+	for _, existing := range c.arguments {
+		seen[existing.Name()] = struct{}{}
+		if existing.IsVariadic() {
+			hasVariadic = true
+		}
+		if !existing.IsRequired() {
+			hasOptional = true
+		}
+	}
+
+	for _, a := range arguments {
+		currName := a.Name()
+
+		if currName == "" {
+			panicf(errArgNameEmpty, c.name)
+		}
+
+		if _, ok := seen[currName]; ok {
+			panicf(errArgDuplicateName, c.name, currName)
+		}
+
+		if hasOptional && a.IsRequired() {
+			panicf(errArgRequiredAfterOptional, c.name, currName)
+		}
+		if hasVariadic {
+			panicf(errArgAfterVariadic, c.name, currName)
+		}
+
+		if !a.IsRequired() {
+			hasOptional = true
+		}
+		if a.IsVariadic() {
+			hasVariadic = true
+		}
+
+		min := a.Min()
+		max := a.Max()
+
+		if min < 0 {
+			panicf(errArgMinNegative, c.name, currName)
+		}
+
+		if max != -1 && min > max {
+			panicf(errArgMinGreaterThanMax, c.name, currName)
+		}
+
+		if min == 0 && max == 0 {
+			panicf(errArgMinAndMaxZero, c.name, currName)
+		}
+
+		seen[currName] = struct{}{}
+	}
 }
 
-func (a *App) verifySystemFlags(errs *[]error) {
-	a.verifyFlag(a.root, a.systemFlags(true), false, false, errs)
-}
+func (c *Command) verifyFlags(flags ...FlagInfo) {
+	seen := make(map[string]struct{})
 
-func (a *App) verifyGlobalFlags(errs *[]error) {
-	a.verifyFlag(a.root, a.GlobalFlags(), true, true, errs)
-}
-
-func (a *App) verifyFlag(
-	c CommandInfo,
-	flags []FlagInfo,
-	checkHelp bool,
-	checkVersion bool,
-	errs *[]error,
-) {
-	nameMap := make(map[string]bool)
+	for _, existing := range c.flags {
+		if existing.Name() != "" {
+			seen[existing.Name()] = struct{}{}
+		}
+		if existing.Shorthand() != "" {
+			seen[existing.Shorthand()] = struct{}{}
+		}
+	}
 
 	for _, f := range flags {
-		name := strings.TrimSpace(f.Name())
-		shorthand := strings.TrimSpace(f.Shorthand())
+		currName := f.Name()
+		currShorthand := f.Shorthand()
 
-		if name == "" && shorthand == "" {
-			*errs = append(*errs, fmt.Errorf(
-				"flag name and shorthand cannot both be empty (command: %q)",
-				c.Name(),
-			))
-			continue
+		if currName == "" && currShorthand == "" {
+			panicf(errFlagNameAndShorthandEmpty, c.name)
 		}
 
-		if checkHelp {
-			a.verifyHelpFlag(c, name, shorthand, errs)
+		if len(currShorthand) > 1 {
+			panicf(errFlagShorthandCharacterLong, c.name, currShorthand)
 		}
 
-		if checkVersion {
-			a.verifyVersionFlag(c, name, shorthand, errs)
-		}
-
-		if name != "" {
-			if _, ok := nameMap[name]; ok {
-				*errs = append(*errs, fmt.Errorf(
-					"duplicate flag name %q (command %q)",
-					name,
-					c.Name(),
-				))
+		if currName != "" {
+			if _, ok := seen[currName]; ok {
+				panicf(errFlagDuplicateName, c.name, currName)
 			}
-
-			nameMap[name] = true
+			seen[currName] = struct{}{}
 		}
 
-		if shorthand != "" {
-			if len(shorthand) > 1 {
-				*errs = append(*errs, fmt.Errorf(
-					"flag shorthand %q cannot be longer than 1 character (command %q)",
-					shorthand,
-					c.Name(),
-				))
+		if currShorthand != "" {
+			if _, ok := seen[currShorthand]; ok {
+				panicf(errFlagDuplicateShorthand, c.name, currShorthand)
 			}
-
-			if _, ok := nameMap[shorthand]; ok {
-				*errs = append(*errs, fmt.Errorf(
-					"duplicate flag shorthand %q (command %q)",
-					shorthand,
-					c.Name(),
-				))
-			}
-
-			nameMap[shorthand] = true
+			seen[currShorthand] = struct{}{}
 		}
 	}
 }
 
-func (a *App) verifyHelpFlag(c CommandInfo, name, shorthand string, errs *[]error) {
-	f := a.config.HelpFlag
+func (a *App) verifySystemFlags(c CommandInfo) {
+	seen := make(map[string]struct{})
 
-	if f != nil {
-		if name != "" && f.Name() != "" && name == f.Name() {
-			*errs = append(*errs, fmt.Errorf(
-				"duplicate system flag name %q (command: %q)",
-				f.Name(),
-				c.Name(),
-			))
+	if hf := a.config.HelpFlag; hf != nil {
+		if name := hf.Name(); name != "" {
+			seen[name] = struct{}{}
 		}
 
-		if shorthand != "" && f.Shorthand() != "" && shorthand == f.Shorthand() {
-			*errs = append(*errs, fmt.Errorf(
-				"duplicate system flag shorthand %q (command: %q)",
-				f.Shorthand(),
-				c.Name(),
-			))
+		if shorthand := hf.Shorthand(); shorthand != "" {
+			seen[shorthand] = struct{}{}
 		}
 	}
-}
 
-func (a *App) verifyVersionFlag(c CommandInfo, name, shorthand string, errs *[]error) {
-	f := a.config.VersionFlag
+	if c == a.root {
+		if vf := a.config.VersionFlag; vf != nil {
+			if name := vf.Name(); name != "" {
+				if _, ok := seen[name]; ok {
+					panicf(errSystemFlagDuplicateName, c.Name(), name)
+				}
+				seen[name] = struct{}{}
+			}
 
-	if f != nil {
-		if name != "" && f.Name() != "" && name == f.Name() {
-			*errs = append(*errs, fmt.Errorf(
-				"duplicate system flag name %q (command: %q)",
-				f.Name(),
-				c.Name(),
-			))
-		}
-
-		if shorthand != "" && f.Shorthand() != "" && shorthand == f.Shorthand() {
-			*errs = append(*errs, fmt.Errorf(
-				"duplicate system flag shorthand %q (command: %q)",
-				f.Shorthand(),
-				c.Name(),
-			))
+			if shorthand := vf.Shorthand(); shorthand != "" {
+				if _, ok := seen[shorthand]; ok {
+					panicf(errSystemFlagDuplicateShorthand, c.Name(), shorthand)
+				}
+				seen[shorthand] = struct{}{}
+			}
 		}
 	}
-}
 
-func (a *App) verifyArguments(c CommandInfo, errs *[]error) {
-	nameMap := make(map[string]bool)
-
-	for i, arg := range c.Arguments() {
-		name := strings.TrimSpace(arg.Name())
-
-		if name == "" {
-			*errs = append(*errs, fmt.Errorf(
-				"argument name cannot be empty (command: %q)",
-				c.Name(),
-			))
-			continue
+	for _, f := range c.Flags() {
+		if name := f.Name(); name != "" {
+			if _, ok := seen[name]; ok {
+				panicf(errSystemFlagDuplicateName, c.Name(), name)
+			}
 		}
 
-		if i != len(c.Arguments())-1 && arg.IsVariadic() {
-			*errs = append(*errs, fmt.Errorf(
-				"variadic argument %q must be the last argument (command: %q)",
-				arg.Name(),
-				c.Name(),
-			))
+		if shorthand := f.Shorthand(); shorthand != "" {
+			if _, ok := seen[shorthand]; ok {
+				panicf(errSystemFlagDuplicateShorthand, c.Name(), shorthand)
+			}
 		}
-
-		if _, ok := nameMap[name]; ok {
-			*errs = append(*errs, fmt.Errorf(
-				"duplicate argument name %q (command: %q)",
-				arg.Name(),
-				c.Name(),
-			))
-		}
-
-		if arg.Min() < 0 {
-			*errs = append(*errs, fmt.Errorf(
-				"minimum value of argument %q cannot be negative (command: %q)",
-				arg.Name(),
-				c.Name(),
-			))
-		}
-
-		if arg.Max() != -1 && arg.Min() > arg.Max() {
-			*errs = append(*errs, fmt.Errorf(
-				"minimum value of argument %q cannot be greater than maximum value (command: %q)",
-				arg.Name(),
-				c.Name(),
-			))
-		}
-
-		if arg.Min() == 0 && arg.Max() == 0 {
-			*errs = append(*errs, fmt.Errorf(
-				"minimum and maximum values for argument %q cannot both be zero (command: %q)",
-				arg.Name(),
-				c.Name(),
-			))
-		}
-
-		nameMap[name] = true
 	}
 }

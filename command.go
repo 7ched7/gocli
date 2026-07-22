@@ -67,25 +67,22 @@ func (c *Command) WithAction(fn func(ctx *Context) error) *Command {
 
 // AddSubcommand registers subcommands to the current command.
 func (c *Command) AddSubcommand(commands ...CommandInfo) *Command {
-	for _, sc := range commands {
-		c.subcommands = append(c.subcommands, sc)
-	}
+	c.verifyCommands(commands...)
+	c.subcommands = append(c.subcommands, commands...)
 	return c
 }
 
 // AddArgument registers arguments to the command.
 func (c *Command) AddArgument(arguments ...ArgumentInfo) *Command {
-	for _, a := range arguments {
-		c.arguments = append(c.arguments, a)
-	}
+	c.verifyArguments(arguments...)
+	c.arguments = append(c.arguments, arguments...)
 	return c
 }
 
 // AddFlag registers flags to the command.
 func (c *Command) AddFlag(flags ...FlagInfo) *Command {
-	for _, f := range flags {
-		c.flags = append(c.flags, f)
-	}
+	c.verifyFlags(flags...)
+	c.flags = append(c.flags, flags...)
 	return c
 }
 

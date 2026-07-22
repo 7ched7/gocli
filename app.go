@@ -1,7 +1,6 @@
 package gocli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 )
@@ -64,19 +63,6 @@ func (a *App) RunWithArgs(args []string) error {
 	return a.handler(args[1:])
 }
 
-// Verify traverses the application tree, verifies components,
-// and returns a combined error if any occurs.
-func (a *App) Verify() error {
-	errs := a.verify()
-	if len(errs) == 0 {
-		return nil
-	}
-	return fmt.Errorf("verification failed with %d issues:\n%v",
-		len(errs),
-		errors.Join(errs...),
-	)
-}
-
 // NewApp creates and returns a new App instance with the given name.
 func NewApp(name string) *App {
 	a := &App{
@@ -107,6 +93,7 @@ func (a *App) WithDescription(description string) *App {
 // WithConfig sets the configuration settings for the application.
 func (a *App) WithConfig(config AppConfig) *App {
 	a.config = config
+	a.root.verifyFlags(a.systemFlags(true)...)
 	return a
 }
 
@@ -126,6 +113,7 @@ func (a *App) AddCommand(commands ...CommandInfo) *App {
 
 func (a *App) bindCommands(p CommandInfo, commands ...CommandInfo) {
 	for _, c := range commands {
+		a.verifySystemFlags(c)
 		c.setParent(p)
 		c.setApp(a)
 		a.bindCommands(c, c.Subcommands()...)
@@ -142,6 +130,7 @@ func (a *App) AddArgument(arguments ...ArgumentInfo) *App {
 // Global flags apply to all commands.
 func (a *App) AddGlobalFlag(flags ...FlagInfo) *App {
 	a.root.AddFlag(flags...)
+	a.verifySystemFlags(a.root)
 	return a
 }
 
