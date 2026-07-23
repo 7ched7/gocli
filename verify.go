@@ -22,8 +22,8 @@ const (
 	errFlagDuplicateName          = "command %q: duplicate flag name %q"
 	errFlagDuplicateShorthand     = "command %q: duplicate flag shorthand %q"
 
-	errSystemFlagDuplicateName      = "command %q: duplicate system flag name %q"
-	errSystemFlagDuplicateShorthand = "command %q: duplicate system flag shorthand %q"
+	errDefaultFlagDuplicateName      = "command %q: duplicate default flag name %q"
+	errDefaultFlagDuplicateShorthand = "command %q: duplicate default flag shorthand %q"
 )
 
 func panicf(format string, a ...any) {
@@ -162,7 +162,7 @@ func (c *Command) verifyFlags(flags ...FlagInfo) {
 	}
 }
 
-func (a *App) verifySystemFlags(c CommandInfo) {
+func (a *App) verifyDefaultFlags(c CommandInfo) {
 	seen := make(map[string]struct{})
 
 	if hf := a.config.HelpFlag; hf != nil {
@@ -179,14 +179,14 @@ func (a *App) verifySystemFlags(c CommandInfo) {
 		if vf := a.config.VersionFlag; vf != nil {
 			if name := vf.Name(); name != "" {
 				if _, ok := seen[name]; ok {
-					panicf(errSystemFlagDuplicateName, c.Name(), name)
+					panicf(errDefaultFlagDuplicateName, c.Name(), name)
 				}
 				seen[name] = struct{}{}
 			}
 
 			if shorthand := vf.Shorthand(); shorthand != "" {
 				if _, ok := seen[shorthand]; ok {
-					panicf(errSystemFlagDuplicateShorthand, c.Name(), shorthand)
+					panicf(errDefaultFlagDuplicateShorthand, c.Name(), shorthand)
 				}
 				seen[shorthand] = struct{}{}
 			}
@@ -196,13 +196,13 @@ func (a *App) verifySystemFlags(c CommandInfo) {
 	for _, f := range c.Flags() {
 		if name := f.Name(); name != "" {
 			if _, ok := seen[name]; ok {
-				panicf(errSystemFlagDuplicateName, c.Name(), name)
+				panicf(errDefaultFlagDuplicateName, c.Name(), name)
 			}
 		}
 
 		if shorthand := f.Shorthand(); shorthand != "" {
 			if _, ok := seen[shorthand]; ok {
-				panicf(errSystemFlagDuplicateShorthand, c.Name(), shorthand)
+				panicf(errDefaultFlagDuplicateShorthand, c.Name(), shorthand)
 			}
 		}
 	}

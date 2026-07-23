@@ -18,7 +18,8 @@ const maxKeyWidth = 25
 func (a *App) Help() string {
 	commandRows := commandsToRows(a.root.subcommands)
 	globalFlagRows := flagsToRows(a.root.flags)
-	systemFlagRows := flagsToRows(a.systemFlags(true))
+	defaultFlagRows := flagsToRows(a.defaultFlags(true))
+	globalFlagRows = append(globalFlagRows, defaultFlagRows...)
 
 	var sb strings.Builder
 
@@ -26,7 +27,6 @@ func (a *App) Help() string {
 	sb.WriteString(renderDescription(a.root.long))
 	sb.WriteString(renderSection("Commands", commandRows))
 	sb.WriteString(renderSection("Global Flags", globalFlagRows))
-	sb.WriteString(renderSection("System Flags", systemFlagRows))
 
 	if len(a.root.subcommands) > 0 {
 		sb.WriteString(renderFooter(a))
@@ -39,7 +39,9 @@ func (a *App) Help() string {
 func (c *Command) Help() string {
 	commandRows := commandsToRows(c.subcommands)
 	flagRows := flagsToRows(c.flags)
-	systemFlagRows := flagsToRows(c.app.systemFlags(false))
+	globalFlagRows := flagsToRows(c.app.root.flags)
+	defaultFlagRows := flagsToRows(c.app.defaultFlags(false))
+	globalFlagRows = append(globalFlagRows, defaultFlagRows...)
 
 	var sb strings.Builder
 
@@ -47,7 +49,7 @@ func (c *Command) Help() string {
 	sb.WriteString(renderDescription(c.long))
 	sb.WriteString(renderSection("Commands", commandRows))
 	sb.WriteString(renderSection("Flags", flagRows))
-	sb.WriteString(renderSection("System Flags", systemFlagRows))
+	sb.WriteString(renderSection("Global Flags", globalFlagRows))
 
 	return sb.String()
 }
@@ -139,16 +141,16 @@ func (c *Command) Usage() string {
 	return out
 }
 
-func (a *App) systemFlags(includeVersion bool) []FlagInfo {
-	sf := make([]FlagInfo, 0, 2)
+func (a *App) defaultFlags(includeVersion bool) []FlagInfo {
+	df := make([]FlagInfo, 0, 2)
 
 	if a.Config().HelpFlag != nil {
-		sf = append(sf, a.Config().HelpFlag)
+		df = append(df, a.Config().HelpFlag)
 	}
 	if includeVersion && a.Config().VersionFlag != nil {
-		sf = append(sf, a.Config().VersionFlag)
+		df = append(df, a.Config().VersionFlag)
 	}
-	return sf
+	return df
 }
 
 func commandsToRows(commands []CommandInfo) []row {

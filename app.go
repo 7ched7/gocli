@@ -93,7 +93,7 @@ func (a *App) WithDescription(description string) *App {
 // WithConfig sets the configuration settings for the application.
 func (a *App) WithConfig(config AppConfig) *App {
 	a.config = config
-	a.root.verifyFlags(a.systemFlags(true)...)
+	a.root.verifyFlags(a.defaultFlags(true)...)
 	return a
 }
 
@@ -113,7 +113,7 @@ func (a *App) AddCommand(commands ...CommandInfo) *App {
 
 func (a *App) bindCommands(p CommandInfo, commands ...CommandInfo) {
 	for _, c := range commands {
-		a.verifySystemFlags(c)
+		a.verifyDefaultFlags(c)
 		c.setParent(p)
 		c.setApp(a)
 		a.bindCommands(c, c.Subcommands()...)
@@ -130,7 +130,7 @@ func (a *App) AddArgument(arguments ...ArgumentInfo) *App {
 // Global flags apply to all commands.
 func (a *App) AddGlobalFlag(flags ...FlagInfo) *App {
 	a.root.AddFlag(flags...)
-	a.verifySystemFlags(a.root)
+	a.verifyDefaultFlags(a.root)
 	return a
 }
 

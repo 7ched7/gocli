@@ -212,7 +212,7 @@ func (a *App) handleShortFlag(p *parser, ctx *Context, arg string, args []string
 			}
 		}
 
-		if err := a.handleSystemFlag(p, ctx.command); err != nil {
+		if err := a.handleDefaultFlag(p, ctx.command); err != nil {
 			return i, err
 		}
 
@@ -272,7 +272,7 @@ func (a *App) handleLongFlag(p *parser, ctx *Context, arg string, args []string,
 		}
 	}
 
-	if err := a.handleSystemFlag(p, ctx.command); err != nil {
+	if err := a.handleDefaultFlag(p, ctx.command); err != nil {
 		return i, err
 	}
 
@@ -304,7 +304,7 @@ func registerFlag(ctx *Context, matched FlagInfo) {
 	ctx.flags[flagDisplayName(matched, false)] = matched
 }
 
-func (a *App) handleSystemFlag(p *parser, c CommandInfo) error {
+func (a *App) handleDefaultFlag(p *parser, c CommandInfo) error {
 	if c == a.root {
 		if p.helpRequested {
 			return a.exitWithMsg(exitOK, MsgHelp, c, nil)

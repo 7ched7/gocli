@@ -88,7 +88,7 @@ func (m *MessageContext) App() AppInfo { return m.app }
 // Msg returns the underlying CLIMessage.
 func (m *MessageContext) Msg() *CLIMessage { return m.msg }
 
-// DefaultMessage returns the default system message.
+// DefaultMessage returns the default message.
 func (m *MessageContext) DefaultMessage() string {
 	if fn, ok := defaultMessages[m.msg.messageType]; ok {
 		if err := fn(*m); err != nil {

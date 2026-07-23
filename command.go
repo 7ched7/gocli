@@ -1,7 +1,8 @@
 package gocli
 
 // Command represents a single CLI command with its metadata,
-// subcommands, flags, argument constraints, and execution logic.
+// subcommands, arguments, flags, and references to
+// the parent command and app.
 type Command struct {
 	name        string
 	alias       string
