@@ -5,7 +5,7 @@
 A lightweight, dependency-free CLI framework for Go. 
 
 ## Overview
-**gocli** provides a fluent interface that allows you to define commands, subcommands, and flags in a single, readable format, unlike standard flag parsing. It handles help menu generation, alias mapping, argument validation, error handling, and many other things right out of the box, allowing you to focus on your business logic.
+**gocli** provides a fluent interface that lets you define commands and flags in a single, readable format. It handles help menu generation, alias mapping, argument validation, error handling, and many other things right out of the box, allowing you to focus on your business logic.
 
 ## Installation
 ```bash
@@ -23,20 +23,22 @@ import (
 )
 
 func main() {
-	// Create a new App instance
+	// Create a new app instance
 	app := gocli.NewApp("mycli").WithVersion("0.1.0")
 
-	nameFlag := gocli.NewStringFlag("name", "Guest").WithAlias("n")
+	// Define flags and arguments
+	nameFlag := gocli.NewStringFlag("name", "guest").WithShorthand("n")
+	messageArg := gocli.NewArgument("message")
 
+	// Configure and run the application
 	app.
 		AddGlobalFlag(nameFlag).
-		WithMinArg(1).
-		WithMaxArg(1).
+		AddArgument(messageArg).
 		WithAction(func(ctx *gocli.Context) error {
-			name := ctx.String("name")
-			message := ctx.Args()[0]
+			name := ctx.Flag("name").String()
+			message := ctx.Arg("message").Get(0)
 
-			return gocli.Exitf(0, "Hey %s! %s", name, message)
+			return gocli.Exitf(0, "hey %s! %s", name, message)
 		})
 
 	os.Exit(app.Run())
@@ -45,8 +47,8 @@ func main() {
 
 **Execution Example**
 ```console
-$ mycli -nJohn "How are you?"
-Hey John! How are you?
+$ mycli -njohn "how are you?"
+hey john! how are you?
 ```
 
 ## Features
@@ -67,7 +69,7 @@ If your project requires nested commands, you can register the command directly 
 ```go
 startCmd := gocli.NewCommand("start").
 	WithAction(func(ctx *gocli.Context) error {
-		fmt.Println("Server is up and running!")
+		fmt.Println("server is up and running!")
 		return nil
 	})
 
@@ -82,7 +84,7 @@ app.AddCommand(gocli.NewCommand("server"))
 **Execution Example**
 ```console
 $ mycli server start 
-Server is up and running!
+server is up and running!
 ```
 
 ### Flags
@@ -107,11 +109,11 @@ With variable binding, the flag value is automatically stored in a predefined va
 ```go
 var ip string = "127.0.0.1"
 
-ipFlag := gocli.NewStringFlagVar("ip", &ip).WithAlias("i")
+ipFlag := gocli.NewStringFlagVar("ip", &ip).WithShorthand("i")
 
 startCmd.AddFlag(ipFlag).
 	WithAction(func(ctx *gocli.Context) error {
-		fmt.Printf("IP address: %s\n", ip) // Direct access
+		fmt.Printf("ip address: %s\n", ip) // Direct access
 		return nil
 	})
 ```
@@ -119,13 +121,13 @@ startCmd.AddFlag(ipFlag).
 #### Dynamic Access via Context
 Another approach is to retrieve the flag value from the **Context** during execution. This is more flexible than binding approach and can be used when multiple flags are involved.
 ```go
-portFlag := gocli.NewIntFlag("port", 0).WithAlias("p")
+portFlag := gocli.NewIntFlag("port", 0).WithShorthand("p")
 
 startCmd.AddFlag(portFlag).
 	WithAction(func(ctx *gocli.Context) error {
-		port := ctx.Int("port") // Get flag value from context
-		fmt.Printf("IP address: %s\n", ip)
-		fmt.Printf("Port: %d\n", port)
+		port := ctx.Flag("port").Int() // Get flag value from context
+		fmt.Printf("ip address: %s\n", ip)
+		fmt.Printf("port: %d\n", port)
 		return nil
 	})
 ```
@@ -133,8 +135,8 @@ startCmd.AddFlag(portFlag).
 **Execution Example**
 ```console
 $ mycli server start -i 127.0.0.1 -p 8000
-IP address: 127.0.0.1
-Port: 8000
+ip address: 127.0.0.1
+port: 8000
 ```
 
 ### Custom Validator
@@ -156,11 +158,14 @@ invalid port number: 80000
 
 The **Context** allows you to write more complex controls by providing access to other flag values.
 ```go
-ip := ctx.String("ip")
+portFlag.WithValidator(func(ctx *gocli.Context, value int) error {
+	ip := ctx.Flag("ip").String() // Access the other flag value
 
-if ip == "127.0.0.1" && value == 8080 {
-	return fmt.Errorf("port already in use: %s:%d", ip, value)
-}
+	if ip == "127.0.0.1" && value == 8080 {
+		return fmt.Errorf("port already in use: %s:%d", ip, value)
+	}
+	return nil
+})
 ```
 
 **Execution Example**
@@ -186,7 +191,7 @@ func (i *IP) Set(value string) error {
 		i.value = ip
 		return nil
 	}
-	return fmt.Errorf("invalid IP address: %s", value)
+	return fmt.Errorf("invalid ip address: %s", value)
 }
 ```
 
@@ -207,27 +212,27 @@ func (i *IP) String() string {
 Once your struct satisfies the **FlagValue** interface, you can integrate it into the flag using the `NewCustomFlagVar` method provided by the API. Simply create a typed variable and bind it.
 ```go
 var ip IP
-ipFlag := gocli.NewCustomFlagVar("ip", &ip).WithAlias("i")
+ipFlag := gocli.NewCustomFlagVar("ip", &ip).WithShorthand("i")
 ```
 
 **Execution Example**
 ```console
 $ mycli server start -i 256.168.1.1
-invalid IP address: 256.168.1.1
+invalid ip address: 256.168.1.1
 ```
 
 ### Configurations
 This framework offers a flexible configuration system that allows you to customize core behaviors.
 
 #### Customizing Default Flags
-By default, framework comes with standard flags like **--help** and **--version**. You are free to customize them to better suit your own style and needs.
+By default, framework comes with default flags like **--help** and **--version**. You are free to customize them to better suit your own style and needs.
 ```go
-conf := gocli.DefaultAppConfig()
+cfg := gocli.DefaultAppConfig()
 
-// Override the version flag alias (e.g., using -V instead of -v)
-conf.VersionFlag = gocli.DefaultVersionFlag().WithAlias("V")
+// Override the version flag shorthand (e.g., using -V instead of -v)
+cfg.VersionFlag = gocli.DefaultVersionFlag().WithShorthand("V")
 
-app.WithConfig(conf)
+app.WithConfig(cfg)
 ```
 
 **Execution Example**
@@ -236,14 +241,14 @@ $ mycli -V
 mycli version 0.1.0
 ```
 
-#### Customizing System Messages
-One of the core features of the framework is the ability to override default system messages. Using `CustomMessages`, you can provide a more user-friendly output.	 
+#### Customizing Default Messages
+One of the core features of the framework is the ability to customize or override default messages to better suit your application's tone, custom logic, or localization needs.
 
 Simply define a **MessagesMap** and assign a custom function to the specific message type you want to override.
 ```go
-conf.CustomMessages = gocli.MessagesMap{
+cfg.CustomMessages = gocli.MessagesMap{
 	gocli.MsgUnknownCommand: func(msgCtx gocli.MessageContext) error {
-		return fmt.Errorf("invalid command")
+		return errors.New("unknown command")
 	},
 }
 ```
@@ -251,33 +256,37 @@ conf.CustomMessages = gocli.MessagesMap{
 **Execution Example**
 ```console
 $ mycli servr
-invalid command
+unknown command
 ```
 
 For more advanced scenarios, the **MessageContext** gives you access to detailed runtime state. This makes it possible to generate dynamic messages.
 ```go
-unkCommand := msgCtx.Msg().Data()["command"] // Access the entered invalid command
-commands := msgCtx.App().Commands() // All registered commands in app instance
+cfg.CustomMessages = gocli.MessagesMap{
+	gocli.MsgUnknownCommand: func(msgCtx gocli.MessageContext) error {
+		unkCommand := msgCtx.Msg().Data()["command"] // Access the entered unknown command
+		commands := msgCtx.App().Commands() // All registered commands in app
 
-var sb strings.Builder
+		var sb strings.Builder
 
-sb.WriteString("invalid command: ")
-sb.WriteString(unkCommand)
-sb.WriteString("\navailable commands:\n")
+		sb.WriteString("unknown command: ")
+		sb.WriteString(unkCommand)
+		sb.WriteString("\navailable commands:")
 
-for _, cmd := range commands {
-	sb.WriteString("- ")
-	sb.WriteString(cmd.Name())
-	sb.WriteString("\n")
+		for _, cmd := range commands {
+			sb.WriteString("\n")
+			sb.WriteString("- ")
+			sb.WriteString(cmd.Name())
+		}
+
+		return errors.New(sb.String())
+	},
 }
-
-return fmt.Errorf(sb.String())
 ```
 
 **Execution Example**
 ```console
 $ mycli servr
-invalid command: servr
+unknown command: servr
 available commands:
 - server
 ```
